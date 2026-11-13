@@ -3,6 +3,8 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { BackButton, ProfileMenu } from './client';
 import { Bell, type Note } from './Bell';
+import { LoginDetails } from './LoginDetails';
+import { cookies } from 'next/headers';
 import { fmtDate } from '@/lib/format';
 import { Alert } from './ui';
 import { profileMenuFor } from '@/lib/nav';
@@ -26,6 +28,9 @@ export async function Page({ s, title, parent, description, actions, flash, chil
     sub = data?.name || 'Vendor';
   }
   const [flashTitle, flashText] = flash ? decodeURIComponent(flash).split('|') : [];
+  // Login details kept for 2 minutes when the email could not be sent (see loginNote).
+  let loginDetails: { email: string; password: string } | null = null;
+  try { const raw = (await cookies()).get('vms_login_note')?.value; if (raw) loginDetails = JSON.parse(raw); } catch { loginDetails = null; }
   return (
     <>
       <header className="topbar">
@@ -52,6 +57,7 @@ export async function Page({ s, title, parent, description, actions, flash, chil
             </div>
           ) : null}
           {flashTitle ? <Alert tone="success" title={flashTitle} text={flashText} /> : null}
+          {loginDetails && (s.persona === 'superadmin' || s.persona === 'accountmanager') ? <LoginDetails email={loginDetails.email} password={loginDetails.password} /> : null}
           {children}
         </div>
       </section>

@@ -1,7 +1,7 @@
 'use client';
 import { useFormAction } from '@/components/useFormAction';
 import { useId } from 'react';
-import { ExtraDocs, FormFooter, PaymentTerm, Section, Select, Text, UploadRow } from './fields';
+import { ExtraDocs, FormFooter, PasswordChoice, PaymentTerm, Section, Select, Text, UploadRow } from './fields';
 import { PasswordBox } from './actions-client';
 import { createVendorAction, updateVendorAction } from '@/lib/actions/vendors';
 
@@ -48,11 +48,13 @@ export function VendorForm({ mode, data, terms, amOptions, canPickAm, amName, si
           <ExtraDocs />
           {fe?.extra ? <span className="field-error">{fe.extra}</span> : null}
         </Section>
+        {add ? (
+          <Section title="Sign-in" hint="The vendor’s username is the email above. Passwords expire every 30 days.">
+            <PasswordChoice errors={fe} />
+          </Section>
+        ) : null}
       </form>
-      {add ? (
-        <div className="form-section"><div className="section-head"><div className="section-title">Sign-in</div>
-          <div className="section-hint">On save, the vendor gets an email with their username (the email above) and a temporary password. They must set a new password at first sign-in. Passwords expire every 30 days.</div></div></div>
-      ) : signIn ? (
+      {add ? null : signIn ? (
         <div className="form-section"><div className="section-head"><div className="section-title">Sign-in</div></div><div className="form-grid"><div className="field full"><PasswordBox info={signIn} /></div></div></div>
       ) : null}
       <FormFooter formId={formId} cancelHref={cancelHref} submitLabel={add ? 'Save & Send Login Details' : 'Save Changes'} pending={pending} error={state?.error} />

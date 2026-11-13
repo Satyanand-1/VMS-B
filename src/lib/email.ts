@@ -28,10 +28,9 @@ export function loginDetailsEmail(name: string, email: string, tempPassword: str
 An account has been created for you in AT VMS (Arkhya Tech Vendor Management System).
 
 Username: ${email}
-Temporary password: ${tempPassword}
+Password: ${tempPassword}
 
-Sign in at ${process.env.APP_BASE_URL}/login. You will be asked to choose a new password at your first sign-in.
-Passwords expire every 30 days.
+Sign in at ${process.env.APP_BASE_URL}/login. You will be asked to choose your own password at your first sign-in.
 
 Arkhya Tech`;
 }
@@ -39,12 +38,12 @@ Arkhya Tech`;
 export function newPasswordEmail(name: string, email: string, tempPassword: string) {
   return `Hello ${name},
 
-Your account manager has issued a new temporary password for AT VMS.
+A new password has been set for your AT VMS account.
 
 Username: ${email}
-Temporary password: ${tempPassword}
+Password: ${tempPassword}
 
-Sign in at ${process.env.APP_BASE_URL}/login and choose a new password. It will be valid for 30 days.
+Sign in at ${process.env.APP_BASE_URL}/login. You will be asked to choose your own password.
 
 Arkhya Tech`;
 }

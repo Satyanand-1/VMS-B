@@ -1,7 +1,7 @@
 'use client';
 import { useFormAction } from '@/components/useFormAction';
 import { useId } from 'react';
-import { DateField, ExtraDocs, FormFooter, PaymentTerm, Section, Select, Text, UploadRow, WorkLocation } from './fields';
+import { DateField, ExtraDocs, FormFooter, PasswordChoice, PaymentTerm, Section, Select, Text, UploadRow, WorkLocation } from './fields';
 import { PasswordBox } from './actions-client';
 import { createPersonAction, updatePersonAction } from '@/lib/actions/people';
 
@@ -95,11 +95,13 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
           <ExtraDocs />
           {fe?.extra ? <span className="field-error">{fe.extra}</span> : null}
         </Section>
+        {!consultant && mode === 'add' ? (
+          <Section title="Sign-in" hint="The resource’s username is the email above. Passwords expire every 30 days.">
+            <PasswordChoice errors={fe} />
+          </Section>
+        ) : null}
       </form>
-      {consultant ? null : mode === 'add' ? (
-        <div className="form-section"><div className="section-head"><div className="section-title">Sign-in</div>
-          <div className="section-hint">On save, the resource gets an email with their username (the email above) and a temporary password. They must set a new password at first sign-in. Passwords expire every 30 days.</div></div></div>
-      ) : signIn ? (
+      {consultant || mode === 'add' ? null : signIn ? (
         <div className="form-section"><div className="section-head"><div className="section-title">Sign-in</div></div><div className="form-grid"><div className="field full"><PasswordBox info={signIn} /></div></div></div>
       ) : null}
       <FormFooter formId={formId} cancelHref={cancelHref} submitLabel={mode === 'add' ? (consultant ? 'Save Consultant' : 'Save & Send Login Details') : 'Save Changes'} pending={pending} error={state?.error} />

@@ -7,7 +7,7 @@ import { audit } from '../audit';
 import { checkFile } from '../files';
 import { encrypt } from '../crypto';
 import { addDocumentVersion, auditPeriodOf, extraDocs, uploadField } from '../domain/documents';
-import { createExternalLogin } from '../domain/accounts';
+import { createLogin, loginNote, passwordFromForm } from '../domain/accounts';
 import { savePaymentTerm } from './vendors';
 import type { FormState } from './auth';
 
@@ -83,6 +83,8 @@ export async function createPersonAction(_: FormState, form: FormData): Promise<
   if (vendorId) term = (must(await db().from('vendors').select('payment_term').eq('id', vendorId).single(), 'vendor') as { payment_term: string }).payment_term;
   else { const err = await savePaymentTerm(term || 'Net 10'); if (err) fe.payment_term = err; }
   await checkUploads(form, [...STAFF_DOCS[type].map((d) => d.field), 'doc_audit'], fe);
+  const pw = type === 'consultant' ? {} : passwordFromForm(form);
+  if (pw.error) fe.pw_value = pw.error;
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
 
   const p = must(await db().from('people').insert({
@@ -111,10 +113,10 @@ export async function createPersonAction(_: FormState, form: FormData): Promise<
   revalidatePath(back.split('?')[0]);
   // Vendor consultants have no login: their vendor submits for them. W-2 / 1099 resources get login details by email.
   if (type === 'consultant') redirect(`${back}${back.includes('?') ? '&' : '?'}${flash('Consultant added', `${f.full_name} was added to the vendor.`)}`);
-  let sent = true;
-  try { ({ sent } = await createExternalLogin(s, { email: f.email, name: f.full_name, role: 'resource', personId: p.id })); }
+  let login;
+  try { login = await createLogin(s, { email: f.email, name: f.full_name, role: 'resource', password: pw.password!, personId: p.id, phone: f.phone }); }
   catch (e) { return { error: (e as Error).message }; }
-  redirect(`${back}${back.includes('?') ? '&' : '?'}${flash(`${label} added · login details sent`, `${f.full_name} was added. ${sent ? `An email with the username (${f.email}) and a temporary password was sent to ${f.email}.` : 'The login email could not be sent; use Send new password from Edit.'}`)}`);
+  redirect(`${back}${back.includes('?') ? '&' : '?'}${flash(`${label} added · ${login.sent ? 'login details sent' : 'email not sent'}`, `${f.full_name} was added. ${await loginNote(login)}`)}`);
 }
 
 async function amFor(vendorId: string | null, clientId: string | null) {

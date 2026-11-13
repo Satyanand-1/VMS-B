@@ -6,7 +6,7 @@ import { requireSession } from '@/lib/session';
 import { db, must } from '@/lib/supabase/admin';
 import { label } from '@/lib/data';
 import { fmtDate } from '@/lib/format';
-import { AmForm, DeleteAmForm, ResendInvite } from './AmForms';
+import { AmForm, DeleteAmForm } from './AmForms';
 
 type Am = { id: string; full_name: string; email: string; phone: string | null; status: string; last_login_at: string | null };
 
@@ -33,22 +33,23 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     <RowActions key="a">
       <EditLink href={`/settings/users?m=edit&id=${a.id}`} />
       <Link className="link-btn link-danger" href={`/settings/users?m=delete&id=${a.id}`} scroll={false}>Delete</Link>
-      {a.status === 'invited' ? <ResendInvite id={a.id} /> : null}
     </RowActions>
   ]);
   const close = '/settings/users';
   const sel = sp.id ? ams.find((a) => a.id === sp.id) : null;
   let modal = null;
-  if (sp.m === 'add') modal = <Modal title="Add Account Manager" description="Enter the account manager’s details and choose the clients they manage. Vendors can be assigned to them afterwards from Vendors." closeHref={close}>
+  if (sp.m === 'add') modal = <Modal title="Add Account Manager" description="Enter the account manager’s details, choose the clients they manage and set their password. The username and password are emailed; vendors can be assigned afterwards from Vendors." closeHref={close}>
     <AmForm mode="add" data={{ clients: [] }} clientOptions={clientOptions()} cancelHref={close} /></Modal>;
   if (sp.m === 'edit' && sel) modal = <Modal title={`Edit ${sel.full_name}`} description="Change details, status and clients. Clients can be removed only while another account manager still manages them." closeHref={close}>
-    <AmForm mode="edit" data={{ ...sel, clients: clientsOf(sel.id) }} clientOptions={clientOptions(sel.id)} cancelHref={close} /></Modal>;
+    <AmForm mode="edit" data={{ ...sel, clients: clientsOf(sel.id) }} clientOptions={clientOptions(sel.id)} cancelHref={close}
+      signIn={{ accountId: sel.id, email: sel.email, name: sel.full_name, badge: sel.status === 'invited' ? 'Invited' : sel.status === 'inactive' ? 'Inactive' : 'Active',
+        text: sel.last_login_at ? `Last sign-in ${fmtDate(sel.last_login_at)}` : 'Has not signed in yet' }} /></Modal>;
   if (sp.m === 'delete' && sel) modal = <Modal title={`Delete ${sel.full_name}?`} description="The account is removed and can no longer sign in. This is recorded in the Audit Log." closeHref={close}>
     <DeleteAmForm id={sel.id} name={sel.full_name} hasWork={clientsOf(sel.id).length + vendorsOf(sel.id) > 0} cancelHref={close}
       targets={ams.filter((a) => a.id !== sel.id && a.status === 'active').map((a) => ({ value: a.id, label: a.full_name }))} /></Modal>;
   return (
     <Page s={s} title="User Account Management" flash={sp.flash}
-      description="Add, edit or delete account managers. New account managers receive an email invite to set their password."
+      description="Add, edit or delete account managers. New account managers receive their username (email) and password by email and choose their own password at first sign-in."
       actions={<Link className="btn btn-primary" href="/settings/users?m=add" scroll={false}>Add Account Manager</Link>}>
       <DataTable title="Account managers" total={ams.length} headers={['Name', 'Email', 'Phone', 'Clients', 'Vendors', 'Status', 'Last login', 'Actions']} rows={rows}
         searchText={ams.map((a) => `${a.full_name} ${a.email}`)} />

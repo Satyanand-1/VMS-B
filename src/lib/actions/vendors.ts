@@ -7,7 +7,7 @@ import { audit } from '../audit';
 import { checkFile } from '../files';
 import { encrypt } from '../crypto';
 import { addDocumentVersion, extraDocs, uploadField } from '../domain/documents';
-import { createExternalLogin, sendNewPassword } from '../domain/accounts';
+import { createLogin, loginNote, passwordFromForm, sendNewPassword } from '../domain/accounts';
 import type { FormState } from './auth';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,6 +54,8 @@ export async function createVendorAction(_: FormState, form: FormData): Promise<
   if (!v.am) fe.account_manager_id = 'Choose the account manager.';
   const termErr = v.term ? await savePaymentTerm(v.term) : 'Choose the payment term.';
   if (termErr) fe.payment_term = termErr;
+  const pw = passwordFromForm(form);
+  if (pw.error) fe.pw_value = pw.error;
   await checkDocs(form, ['msa', 'po'], fe);
   if (!fe.email && (await db().from('user_accounts').select('id').eq('email', v.email).maybeSingle()).data) fe.email = 'An account with this email already exists.';
   if (!fe.name && (await db().from('vendors').select('id').ilike('name', v.name).maybeSingle()).data) fe.name = 'A vendor with this name already exists.';
@@ -77,11 +79,11 @@ export async function createVendorAction(_: FormState, form: FormData): Promise<
   ]);
   for (const x of extraDocs(form)) if (x.file && x.name) await addDocumentVersion(s, 'vendor', row.id, x.name, x.file, { validFrom: x.start, validTo: x.end, ownerLabel: v.name });
   await audit(s, 'create', 'vendor', row.id, `created vendor ${v.name}`, null, { ...v, ein: undefined });
-  let sent = true;
-  try { ({ sent } = await createExternalLogin(s, { email: v.email, name: v.signatory, role: 'vendor', vendorId: row.id })); }
+  let login;
+  try { login = await createLogin(s, { email: v.email, name: v.signatory, role: 'vendor', password: pw.password!, vendorId: row.id }); }
   catch (e) { return { error: (e as Error).message }; }
   revalidatePath('/vendors');
-  redirect(`/vendors?${flash('Vendor added · login details sent', `${v.name} was added. ${sent ? `An email with the username (${v.email}) and a temporary password was sent to ${v.email}.` : 'The login email could not be sent; use Send new password from Edit Vendor.'}`)}`);
+  redirect(`/vendors?${flash(login.sent ? 'Vendor added · login details sent' : 'Vendor added · email not sent', `${v.name} was added. ${await loginNote(login)}`)}`);
 }
 
 // Edit Vendor (Super Admin; Account Manager for own vendors). Name, EIN and email are admin-managed and read-only.
@@ -134,19 +136,23 @@ export async function updateCompanyProfileAction(_: FormState, form: FormData): 
   redirect(`/profile?${flash('Company profile saved', 'Your address, phone and authorized signatory were updated.')}`);
 }
 
-// AUTH-4: Send new password (from Edit Vendor / Edit person).
+// AUTH-4: Send new password (from Edit Vendor / Edit person / Edit Account Manager), generated or chosen by the sender.
 export async function sendNewPasswordAction(_: FormState, form: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin', 'accountmanager']);
   const accountId = String(form.get('account_id'));
-  const acc = (await db().from('user_accounts').select('id,vendor_id,person_id,full_name,email').eq('id', accountId).maybeSingle()).data as { id: string; vendor_id: string | null; person_id: string | null; full_name: string; email: string } | null;
+  const acc = (await db().from('user_accounts').select('id,role,vendor_id,person_id,full_name,email').eq('id', accountId).maybeSingle()).data as { id: string; role: string; vendor_id: string | null; person_id: string | null; full_name: string; email: string } | null;
   if (!acc) return { error: 'Account not found.' };
-  let ok = false;
+  const pw = passwordFromForm(form);
+  if (pw.error) return { error: pw.error };
+  let ok = acc.role === 'account_manager' && s.persona === 'superadmin';
   if (acc.vendor_id) ok = canSeeVendor(s, acc.vendor_id);
   if (acc.person_id) {
     const p = (await db().from('people').select('id,client_id,vendor_id').eq('id', acc.person_id).maybeSingle()).data;
     ok = !!p && canSeePerson(s, p);
   }
   if (!ok) return { error: 'You do not have access to this account.' };
-  try { await sendNewPassword(s, accountId); } catch (e) { return { error: (e as Error).message }; }
-  return { ok: `New temporary password emailed to ${acc.email}. ${acc.full_name} must set a new password at next sign-in.` };
+  let r;
+  try { r = await sendNewPassword(s, accountId, pw.password!); } catch (e) { return { error: (e as Error).message }; }
+  return { ok: r.sent ? `New password emailed to ${acc.email}. ${acc.full_name} must choose their own password at next sign-in.`
+    : `The email could not be sent (email service not set up). Share these login details yourself — Username: ${r.email} · Password: ${r.password}. ${acc.full_name} must choose their own password at next sign-in.` };
 }

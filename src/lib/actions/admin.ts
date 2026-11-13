@@ -6,6 +6,7 @@ import { db, must } from '../supabase/admin';
 import { requireSession } from '../session';
 import { audit } from '../audit';
 import { sendEmail } from '../email';
+import { createLogin, loginNote, passwordFromForm } from '../domain/accounts';
 import type { FormState } from './auth';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,7 +22,8 @@ async function sendInvite(userId: string, email: string, name: string) {
     `Hello ${name},\n\nYou have been added as an Account Manager in AT VMS. Set your password with this link (valid for 72 hours, single use):\n\n${process.env.APP_BASE_URL}/invite/${token}\n\nArkhya Tech`);
 }
 
-// ADM-2: Add Account Manager (name, unique email, phone, at least one client) + invite.
+// ADM-2 / ADM-3: Add Account Manager (name, unique email, phone, at least one client). The Super Admin sets or generates
+// the password; username (email) and password are emailed, and the password is changed at first sign-in.
 export async function createAmAction(_: FormState, form: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin']);
   const name = String(form.get('full_name') || '').trim();
@@ -32,16 +34,18 @@ export async function createAmAction(_: FormState, form: FormData): Promise<Form
   if (!name) fe.full_name = 'Enter the full name.';
   if (!EMAIL.test(email)) fe.email = 'Enter a valid work email.';
   else if ((await db().from('user_accounts').select('id').eq('email', email).maybeSingle()).data) fe.email = 'An account with this email already exists.';
-  if (!clients.length) fe.clients = 'Select at least one client.';
+  // Clients are optional here: on a new system there are no clients yet (Add Client needs an account manager first).
+  const pw = passwordFromForm(form);
+  if (pw.error) fe.pw_value = pw.error;
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
-  const { data, error } = await db().auth.admin.createUser({ email, email_confirm: true });
-  if (error || !data.user) return { error: error?.message || 'Could not create the account.' };
-  must(await db().from('user_accounts').insert({ id: data.user.id, role: 'account_manager', email, full_name: name, phone, status: 'invited' }), 'account');
-  must(await db().from('client_account_managers').insert(clients.map((c) => ({ client_id: c, account_manager_id: data.user!.id }))), 'clients');
-  await sendInvite(data.user.id, email, name);
-  await audit(s, 'create', 'account_manager', data.user.id, `added account manager ${name} and sent an invite`);
+  let login;
+  try { login = await createLogin(s, { email, name, role: 'account_manager', password: pw.password!, phone }); }
+  catch (e) { return { error: (e as Error).message }; }
+  const id = (await db().from('user_accounts').select('id').eq('email', email).single()).data!.id as string;
+  if (clients.length) must(await db().from('client_account_managers').insert(clients.map((c) => ({ client_id: c, account_manager_id: id }))), 'clients');
+  await audit(s, 'create', 'account_manager', id, `added account manager ${name}`);
   revalidatePath('/settings/users');
-  redirect(`/settings/users?${flash('Invite sent', `${name} was added with status Invited. An invite link (valid 72 hours) was emailed to ${email}.`)}`);
+  redirect(`/settings/users?${flash(login.sent ? 'Account manager added · login details sent' : 'Account manager added · email not sent', `${name} was added. ${await loginNote(login)}`)}`);
 }
 
 // ADM-4: Edit name, email, phone, status and clients. A client is never left without an account manager.
