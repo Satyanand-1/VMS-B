@@ -10,7 +10,7 @@ import { signOut } from '@/lib/actions/auth';
 import { db } from '@/lib/supabase/admin';
 import type { Session } from '@/lib/session';
 
-const ROLE_LABEL = { superadmin: 'Super Admin', accountmanager: 'Account Manager', vendor: '', w2: 'W-2 Resource', w9: '1099 Resource', consultant: 'Vendor Consultant' };
+const ROLE_LABEL = { superadmin: 'Super Admin', accountmanager: 'Account Manager', vendor: '', w2: 'W-2 Resource', w9: '1099 Resource' };
 
 export async function Page({ s, title, parent, description, actions, flash, children }: {
   s: Session; title: string; parent?: { label: string; href: string }; description?: ReactNode; actions?: ReactNode;

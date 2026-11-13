@@ -22,7 +22,7 @@ export function LoginForm({ notice, ok, demo }: { notice?: string; ok?: string; 
   return (
     <div className="login-pane">
       <h2>Vendor Management System</h2>
-      <p className="login-sub">Sign in with your email and password. Vendors, consultants and W-2 / 1099 resources: use the username and temporary password from your welcome email the first time. Your password must be changed every 30 days.</p>
+      <p className="login-sub">Sign in with your email and password. Vendors and W-2 / 1099 resources: use the username and temporary password from your welcome email the first time. Your password must be changed every 30 days.</p>
       <form className="login-form" onSubmit={action}>
         <label htmlFor="loginEmail">Email (username)</label>
         <input type="email" id="loginEmail" name="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />

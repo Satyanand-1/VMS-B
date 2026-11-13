@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const reason = req.nextUrl.searchParams.get('reason');
   const s = await loadSession();
   let notice = 'Please sign in again.';
-  if (reason === 'inactive') notice = 'This account is inactive. Contact your account manager to restore access.';
+  if (reason === 'inactive') notice = 'This account cannot sign in. Contact your account manager.';
   if (reason === 'expired' && s) {
     notice = `Your password expired on ${passwordInfo(s.account).expires}. Passwords must be changed every 30 days. Your account manager will email you a new temporary password.`;
   }

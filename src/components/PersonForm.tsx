@@ -42,7 +42,7 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
           <Section title={mode === 'add' ? 'Consultant & assignment' : 'Personal details'}>
             {vendor ? <Text name="vendor_name" label="Vendor" value={vendor.name} readOnly lock="Selected" /> : null}
             <Text name="full_name" label="Consultant name" value={data.full_name} required errors={fe} />
-            <Text name="email" label="Email (username)" value={data.email} required errors={fe} note="Sign-in username. Login details are sent to this address." />
+            <Text name="email" label="Email" value={data.email} required errors={fe} />
             <Text name="phone" label="Phone" value={data.phone} errors={fe} />
             {mode === 'edit' && vendor ? <Text name="vendor_contact" label="Vendor contact" value={vendor.contact} readOnly lock="From vendor" /> : null}
           </Section>
@@ -96,13 +96,13 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
           {fe?.extra ? <span className="field-error">{fe.extra}</span> : null}
         </Section>
       </form>
-      {mode === 'add' ? (
+      {consultant ? null : mode === 'add' ? (
         <div className="form-section"><div className="section-head"><div className="section-title">Sign-in</div>
-          <div className="section-hint">On save, the {consultant ? 'consultant' : 'resource'} gets an email with their username (the email above) and a temporary password. They must set a new password at first sign-in. Passwords expire every 30 days.</div></div></div>
+          <div className="section-hint">On save, the resource gets an email with their username (the email above) and a temporary password. They must set a new password at first sign-in. Passwords expire every 30 days.</div></div></div>
       ) : signIn ? (
         <div className="form-section"><div className="section-head"><div className="section-title">Sign-in</div></div><div className="form-grid"><div className="field full"><PasswordBox info={signIn} /></div></div></div>
       ) : null}
-      <FormFooter formId={formId} cancelHref={cancelHref} submitLabel={mode === 'add' ? 'Save & Send Login Details' : 'Save Changes'} pending={pending} error={state?.error} />
+      <FormFooter formId={formId} cancelHref={cancelHref} submitLabel={mode === 'add' ? (consultant ? 'Save Consultant' : 'Save & Send Login Details') : 'Save Changes'} pending={pending} error={state?.error} />
     </div>
   );
 }

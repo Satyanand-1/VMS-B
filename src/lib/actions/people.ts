@@ -45,7 +45,7 @@ function personFields(form: FormData) {
 async function validate(f: ReturnType<typeof personFields>, type: PType, mode: 'add' | 'edit', personId?: string) {
   const fe: Record<string, string> = {};
   if (!f.full_name) fe.full_name = 'Enter the name.';
-  if (!EMAIL.test(f.email)) fe.email = 'Enter a valid email address. It is the sign-in username.';
+  if (!EMAIL.test(f.email)) fe.email = type === 'consultant' ? 'Enter a valid email address.' : 'Enter a valid email address. It is the sign-in username.';
   if (!f.role_title) fe.role_title = 'Enter the role.';
   if (!(f.hourly_rate > 0)) fe.hourly_rate = 'Enter the hourly rate.';
   if (type !== 'consultant' && !f.client_id) fe.client_id = 'Choose the client.';
@@ -108,10 +108,12 @@ export async function createPersonAction(_: FormState, form: FormData): Promise<
 
   const label = type === 'consultant' ? 'Consultant' : type === 'w2' ? 'W-2 resource' : '1099 resource';
   await audit(s, 'create', 'person', p.id, `created ${label.toLowerCase()} ${f.full_name}`, null, { ...f, ssn: undefined });
+  revalidatePath(back.split('?')[0]);
+  // Vendor consultants have no login: their vendor submits for them. W-2 / 1099 resources get login details by email.
+  if (type === 'consultant') redirect(`${back}${back.includes('?') ? '&' : '?'}${flash('Consultant added', `${f.full_name} was added to the vendor.`)}`);
   let sent = true;
   try { ({ sent } = await createExternalLogin(s, { email: f.email, name: f.full_name, role: 'resource', personId: p.id })); }
   catch (e) { return { error: (e as Error).message }; }
-  revalidatePath(back.split('?')[0]);
   redirect(`${back}${back.includes('?') ? '&' : '?'}${flash(`${label} added · login details sent`, `${f.full_name} was added. ${sent ? `An email with the username (${f.email}) and a temporary password was sent to ${f.email}.` : 'The login email could not be sent; use Send new password from Edit.'}`)}`);
 }
 

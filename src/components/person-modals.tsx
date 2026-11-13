@@ -22,7 +22,7 @@ export async function personModal(sp: Record<string, string>, s: Session, closeH
     const clients = (await clientsInScope(s)).filter((c) => c.status === 'active').map((c) => ({ value: c.id, label: c.name }));
     const title = type === 'consultant' ? `Add Consultant · ${vendor!.name}` : type === 'w2' ? 'Add W-2 Resource' : 'Add 1099 Resource';
     const desc = type === 'consultant'
-      ? 'Add a consultant for this vendor and their first client assignment. Only account managers and the Super Admin add vendor consultants; the consultant is emailed a username and temporary password.'
+      ? 'Add a consultant for this vendor and their first client assignment. Only account managers and the Super Admin add vendor consultants. Consultants do not sign in; their vendor submits their invoices and timesheets.'
       : `Add a ${type === 'w2' ? 'W-2 employee' : '1099 contractor'} with personal, assignment and payment details.`;
     return (
       <Modal title={title} description={desc} closeHref={closeHref}>
@@ -66,7 +66,7 @@ export async function personModal(sp: Record<string, string>, s: Session, closeH
           data={{ ...person, ssnMasked: maskSsn(person.ssn_last4) }}
           docs={docs.map((d) => ({ id: d.id, doc_type: d.doc_type, uploader_kind: d.uploader_kind, no_dates: d.no_dates, valid_from: d.valid_from, valid_to: d.valid_to,
             audit_period: d.audit_period, current: d.current ? { name: d.current.file_name, size: d.size } : null }))}
-          signIn={await signInInfo({ personId: person.id })} />
+          signIn={person.type === 'consultant' ? null : await signInInfo({ personId: person.id })} />
       </Modal>
     );
   }

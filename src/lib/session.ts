@@ -6,7 +6,7 @@ import { db, must } from './supabase/admin';
 import { addDays, daysBetween, fmtDate, todayISO } from './format';
 
 export type Role = 'super_admin' | 'account_manager' | 'vendor' | 'resource';
-export type Persona = 'superadmin' | 'accountmanager' | 'vendor' | 'w2' | 'w9' | 'consultant';
+export type Persona = 'superadmin' | 'accountmanager' | 'vendor' | 'w2' | 'w9';
 
 export type Account = {
   id: string; role: Role; email: string; full_name: string; phone: string | null; status: string;
@@ -53,7 +53,7 @@ export const loadSession = cache(async (): Promise<Session | null> => {
     personType = (p as { type: Session['personType'] }).type;
   }
   const persona: Persona = a.role === 'super_admin' ? 'superadmin' : a.role === 'account_manager' ? 'accountmanager'
-    : a.role === 'vendor' ? 'vendor' : personType === 'w2' ? 'w2' : personType === 'consultant' ? 'consultant' : 'w9';
+    : a.role === 'vendor' ? 'vendor' : personType === 'w2' ? 'w2' : 'w9';
 
   const scope: Scope = { all: a.role === 'super_admin', clientIds: [], vendorIds: [], personId: a.person_id };
   if (a.role === 'account_manager') {
@@ -70,7 +70,7 @@ export const loadSession = cache(async (): Promise<Session | null> => {
 export async function requireSession(allowed?: Persona[]): Promise<Session> {
   const s = await loadSession();
   if (!s) redirect('/login');
-  if (s.account.status === 'inactive') redirect('/login/signed-out?reason=inactive');
+  if (s.account.status === 'inactive' || s.personType === 'consultant') redirect('/login/signed-out?reason=inactive');
   if (s.account.must_change_password) redirect('/login/set-password');
   if (passwordInfo(s.account).expired) redirect('/login/signed-out?reason=expired');
   if (allowed && !allowed.includes(s.persona)) redirect('/dashboard');

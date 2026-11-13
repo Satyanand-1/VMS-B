@@ -37,8 +37,6 @@ export function navFor(p: Persona): NavItem[] {
       return [{ label: 'Dashboard', href: '/dashboard' }, { label: 'Timesheets', href: '/timesheets' }];
     case 'w9':
       return [{ label: 'Dashboard', href: '/dashboard' }, { label: 'Invoices', href: '/invoices' }];
-    case 'consultant':
-      return [{ label: 'Dashboard', href: '/dashboard' }];
   }
 }
 
@@ -46,6 +44,5 @@ export function profileMenuFor(p: Persona): { label: string; href: string }[] {
   if (p === 'vendor') return [
     { label: 'Documents', href: '/my-documents' }, { label: 'Company Profile', href: '/profile' }, { label: 'Change Password', href: '/change-password' }];
   if (p === 'w2' || p === 'w9') return [{ label: 'My Documents', href: '/my-documents' }, { label: 'Change Password', href: '/change-password' }];
-  if (p === 'consultant') return [{ label: 'Change Password', href: '/change-password' }];
   return []; // Super Admin / Account Manager: Sign Out only
 }

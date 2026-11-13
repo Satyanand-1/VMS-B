@@ -21,6 +21,10 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
   const { data: acc } = await db().from('user_accounts').select('*').eq('email', email).maybeSingle();
   const account = acc as Account | null;
   if (account?.status === 'inactive') return { error: 'This account is inactive. Contact your account manager to restore access.' };
+  if (account?.person_id) {
+    const p = (await db().from('people').select('type').eq('id', account.person_id).maybeSingle()).data as { type: string } | null;
+    if (p?.type === 'consultant') return { error: 'Email or password is incorrect.' }; // vendor consultants have no login
+  }
   if (account?.status === 'invited') return { error: 'Your account is not active yet. Use the invite link in your email to set a password.' };
 
   const supabase = await authClient();

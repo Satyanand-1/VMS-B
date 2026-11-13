@@ -217,19 +217,10 @@ async function resourceDashboard(s: Session, flash?: string) {
   );
 }
 
-async function consultantDashboard(s: Session) {
-  return (
-    <Page s={s} title={`Welcome back, ${s.account.full_name.split(' ')[0]}`} description="Your invoices and timesheets are submitted by your vendor. Use the profile menu to change your password.">
-      <Alert tone="info" title="Nothing to do here" text="Your account manager and vendor manage your assignment and documents." />
-    </Page>
-  );
-}
-
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const s = await requireSession();
   const { flash } = await searchParams;
   if (isStaff(s)) return staffDashboard(s);
   if (s.persona === 'vendor') return vendorDashboard(s, flash);
-  if (s.personType === 'consultant') return consultantDashboard(s);
   return resourceDashboard(s, flash);
 }

@@ -201,11 +201,10 @@ for (const [name, type, v, role, email, phone, address, ssn, cl, rate, loc, star
     await doc('person', p.id, docType, { uploader, noDates, from: noDates ? null : up, to, period, versions, na });
   }
 }
-// Logins for W-2 / 1099 resources and (for the Sign-in section) consultants
+// Logins for W-2 / 1099 resources (vendor consultants have no login)
 const personLogins = [
   ['maya.reed@outlook.com', 'Maya Reed', { set: '2026-10-30' }], ['jordan@blakeux.studio', 'Jordan Blake', { set: '2026-10-20' }],
-  ['alex.morgan@gmail.com', 'Alex Morgan', {}], ['grace.liu@outlook.com', 'Grace Liu', {}], ['ava@chendev.io', 'Ava Chen', {}], ['noah@patelsec.com', 'Noah Patel', {}],
-  ['kevin.singh@summitits.com', 'Kevin Singh', { set: '2026-10-12' }], ['deepa.kumar@coralstaffing.com', 'Deepa Kumar', {}]
+  ['alex.morgan@gmail.com', 'Alex Morgan', {}], ['grace.liu@outlook.com', 'Grace Liu', {}], ['ava@chendev.io', 'Ava Chen', {}], ['noah@patelsec.com', 'Noah Patel', {}]
 ];
 for (const [email, name, extra] of personLogins) await account(email, name, 'resource', { ...extra, person_id: person[name] });
 
