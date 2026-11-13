@@ -11,7 +11,8 @@ Requirements: Node.js 20+, Docker Desktop (running).
 cd web
 npm install
 npm run db:start     # starts local Supabase in Docker (first time downloads images)
-npm run db:reset     # creates the schema and loads the sample data (same people, vendors and invoices as the prototype)
+npm run db:reset     # fresh, empty system with only the Super Admin (a.krishnan@arkhyatech.com / password123)
+# or: npm run db:reset:sample   # loads the prototype's sample data instead (set NEXT_PUBLIC_DEMO_LOGINS=1 for the demo chips)
 npm run dev          # http://localhost:3000
 ```
 
@@ -23,7 +24,10 @@ npm run dev          # http://localhost:3000
 | Email inbox (all emails the app sends: login details, invites, reminders) | http://127.0.0.1:54324 |
 | Database admin (Supabase Studio) | http://127.0.0.1:54323 |
 
-## Sample sign-ins (password `password123`)
+Vendor consultants have no login: the Super Admin / Account Manager adds them, and their vendor submits their invoices and timesheets.
+Login details (username + temporary password) are emailed only to vendors and W-2 / 1099 resources.
+
+## Sample sign-ins after `db:reset:sample` (password `password123`)
 
 | Role | Email |
 |---|---|
@@ -76,5 +80,6 @@ The sign-in page shows these as one-click chips while `NEXT_PUBLIC_DEMO_LOGINS=1
 |---|---|
 | `npm run dev` / `npm run build` / `npm start` | Develop / production build / run the build |
 | `npm run db:start` / `db:stop` | Start / stop local Supabase |
-| `npm run db:reset` | Recreate the database and reload the sample data |
+| `npm run db:reset` | Recreate an empty database with only the Super Admin |
+| `npm run db:reset:sample` | Recreate the database with the prototype's sample data |
 | `npm run typecheck` / `npm run lint` | Type-check / lint |
