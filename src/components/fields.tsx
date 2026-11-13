@@ -266,14 +266,15 @@ function ExtraFile() {
   );
 }
 
-export function FormFooter({ cancelHref, submitLabel, pending, error, extra }: { cancelHref?: string; submitLabel: string; pending?: boolean; error?: string; extra?: ReactNode }) {
+// formId: the footer can sit outside the <form> (e.g. after the Sign-in box, which has its own small form).
+export function FormFooter({ cancelHref, submitLabel, pending, error, extra, formId }: { cancelHref?: string; submitLabel: string; pending?: boolean; error?: string; extra?: ReactNode; formId?: string }) {
   return (
     <div className="form-footer">
       <span className="person-sub inline">{error ? <span className="field-error" role="alert">{error}</span> : <><span className="req">*</span> Required</>}</span>
       <div className="form-buttons">
         {extra}
         {cancelHref ? <Link href={cancelHref} scroll={false} className="btn btn-secondary">Cancel</Link> : null}
-        <button className="btn btn-primary" type="submit" disabled={pending}>{pending ? 'Saving…' : submitLabel}</button>
+        <button className="btn btn-primary" type="submit" form={formId} disabled={pending}>{pending ? 'Saving…' : submitLabel}</button>
       </div>
     </div>
   );
