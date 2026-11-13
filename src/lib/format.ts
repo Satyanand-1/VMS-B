@@ -1,4 +1,4 @@
-// Dates read like "Nov 12, 2026" everywhere (PRD §7); money is USD with 2 decimals.
+// Dates read month/day/year — "11/12/2026" — everywhere (PRD §7); money is USD with 2 decimals.
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -13,7 +13,7 @@ function parts(d: string | Date): [number, number, number] {
 export function fmtDate(d: string | Date | null | undefined): string {
   if (!d) return '—';
   const [y, m, day] = parts(d);
-  return `${MONTHS[m]} ${day}, ${y}`;
+  return `${String(m + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}/${y}`;
 }
 
 // "2026-10-01" → "October 2026" / "Oct 2026"

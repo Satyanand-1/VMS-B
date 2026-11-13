@@ -43,13 +43,13 @@ export function uploadField(form: FormData, name: string) {
   return { file, start: String(form.get(`${name}__start`) || '') || null, end: String(form.get(`${name}__end`) || '') || null, period: String(form.get(`${name}__period`) || '') || null };
 }
 
-// "Audit period 6 months, start 2026-07-01" → label "Jul 1, 2026 – Dec 31, 2026 (6 months)" and the end date.
+// "Audit period 6 months, start 2026-07-01" → label "07/01/2026 – 12/31/2026 (6 months)" and the end date.
 export function auditPeriodOf(start: string | null, period: string | null) {
   if (!start || !period) return { label: null, end: null };
   const months = period.startsWith('3') ? 3 : 6;
   const [y, m, d] = start.split('-').map(Number);
   const end = new Date(Date.UTC(y, m - 1 + months, d - 1)).toISOString().slice(0, 10);
-  const fmt = (iso: string) => { const [yy, mm, dd] = iso.split('-').map(Number); return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][mm - 1]} ${dd}, ${yy}`; };
+  const fmt = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(8, 10)}/${iso.slice(0, 4)}`;
   return { label: `${fmt(start)} – ${fmt(end)} (${months} months)`, end };
 }
 

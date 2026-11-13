@@ -1,7 +1,7 @@
 'use client';
 import { useFormAction } from '@/components/useFormAction';
 import { useId } from 'react';
-import { DateField, ExtraDocs, FormFooter, PasswordChoice, PaymentTerm, Section, Select, Text, UploadRow, WorkLocation } from './fields';
+import { DateRange, ExtraDocs, FormFooter, PasswordChoice, PaymentTerm, Section, Select, Text, UploadRow, WorkLocation } from './fields';
 import { PasswordBox } from './actions-client';
 import { createPersonAction, updatePersonAction } from '@/lib/actions/people';
 
@@ -60,8 +60,7 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
           <Text name="role_title" label="Role" value={data.role_title} required errors={fe} />
           <Text name="hourly_rate" label="Hourly rate (USD)" value={data.hourly_rate ?? ''} required errors={fe} />
           <WorkLocation value={data.work_location} errors={fe} />
-          <DateField name="start_date" label="Start date" value={data.start_date} errors={fe} />
-          <DateField name="end_date" label="End date" value={data.end_date} errors={fe} />
+          <DateRange startName="start_date" endName="end_date" start={data.start_date} end={data.end_date} errors={fe} />
           {consultant
             ? <Text name="payment_term_ro" label="Payment term" value={vendor?.payment_term || data.payment_term} readOnly lock="From vendor · set by account manager" />
             : <PaymentTerm terms={terms} value={data.payment_term} errors={fe} />}

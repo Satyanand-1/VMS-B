@@ -3,7 +3,7 @@ import { Page } from '@/components/page';
 import { DataTable, Filters, Modal } from '@/components/client';
 import { Badge, Diff, Muted, PersonCell } from '@/components/ui';
 import { requireSession, canSeePerson, type Session } from '@/lib/session';
-import { activeSubmission, billingPeriods, clientInvoicesFor, clientsInScope, currentPeriod, getPerson, maps, peopleInScope, reviewNote, reviewStatus, submissionsFor,
+import { activeSubmission, monthOptions, clientInvoicesFor, clientsInScope, currentPeriod, getPerson, maps, peopleInScope, reviewNote, reviewStatus, submissionsFor,
   type ClientInvoice, type Person, type Submission } from '@/lib/data';
 import { monthLong } from '@/lib/format';
 import { ReviewActions, ReviewClientInvoice } from './ReviewActions';
@@ -15,7 +15,7 @@ const STATUSES = ['All statuses', 'Approved', 'Rejected', 'In Progress'];
 export default async function InvoiceManagementPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const s = await requireSession(['superadmin', 'accountmanager']);
   const sp = await searchParams;
-  const months = billingPeriods();
+  const months = monthOptions();
   const clients = await clientsInScope(s);
   const client = clients.some((c) => c.id === sp.client) ? sp.client : 'all';
   const status = STATUSES.includes(sp.status) ? sp.status : 'All statuses';

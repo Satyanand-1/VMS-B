@@ -8,6 +8,7 @@ import { checkFile } from '../files';
 import { encrypt } from '../crypto';
 import { addDocumentVersion, extraDocs, uploadField } from '../domain/documents';
 import { createLogin, loginNote, passwordFromForm, sendNewPassword } from '../domain/accounts';
+import { docDateErrors, phoneError } from '../validate';
 import type { FormState } from './auth';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,6 +29,7 @@ async function checkDocs(form: FormData, names: string[], fe: Record<string, str
     const u = uploadField(form, n);
     if (u.file) { const p = await checkFile(u.file); if (p) fe[n] = p; }
   }
+  docDateErrors(form, names, fe);
   for (const x of extraDocs(form)) {
     if (x.file && !x.name) fe.extra = 'Enter a name for each other document.';
     if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
@@ -48,7 +50,8 @@ export async function createVendorAction(_: FormState, form: FormData): Promise<
   if (!v.address) fe.address = 'Enter the address.';
   if (!EMAIL.test(v.email)) fe.email = 'Enter a valid email address. It is the vendor’s sign-in username.';
   if (v.ein.length !== 9) fe.ein = 'Enter the 9-digit federal ID (EIN).';
-  if (!v.phone) fe.phone = 'Enter the phone number.';
+  const ph = phoneError(v.phone, true);
+  if (ph) fe.phone = ph;
   if (!v.state) fe.state_of_incorporation = 'Choose the state of incorporation.';
   if (!v.signatory) fe.signatory_name = 'Enter the authorized signatory name.';
   if (!v.am) fe.account_manager_id = 'Choose the account manager.';
@@ -101,7 +104,10 @@ export async function updateVendorAction(_: FormState, form: FormData): Promise<
   if (s.persona === 'superadmin') upd.account_manager_id = String(form.get('account_manager_id') || before.account_manager_id);
   const fe: Record<string, string> = {};
   if (!upd.address) fe.address = 'Enter the address.';
-  if (!upd.phone) fe.phone = 'Enter the phone number.';
+  const ph = phoneError(upd.phone as string, true);
+  if (ph) fe.phone = ph;
+  const sph = phoneError(upd.signatory_phone as string | null);
+  if (sph) fe.signatory_phone = sph;
   if (!upd.signatory_name) fe.signatory_name = 'Enter the authorized signatory name.';
   const termErr = await savePaymentTerm(String(upd.payment_term));
   if (termErr) fe.payment_term = termErr;
@@ -126,7 +132,10 @@ export async function updateCompanyProfileAction(_: FormState, form: FormData): 
   const upd = { address: String(form.get('address') || '').trim(), phone: String(form.get('phone') || '').trim(), signatory_name: String(form.get('signatory_name') || '').trim(), signatory_phone: String(form.get('signatory_phone') || '').trim() || null };
   const fe: Record<string, string> = {};
   if (!upd.address) fe.address = 'Enter the address.';
-  if (!upd.phone) fe.phone = 'Enter the phone number.';
+  const ph = phoneError(upd.phone, true);
+  if (ph) fe.phone = ph;
+  const sph = phoneError(upd.signatory_phone);
+  if (sph) fe.signatory_phone = sph;
   if (!upd.signatory_name) fe.signatory_name = 'Enter the authorized signatory name.';
   if (Object.keys(fe).length) return { fieldErrors: fe };
   const before = must(await db().from('vendors').select('address,phone,signatory_name,signatory_phone').eq('id', id).single(), 'vendor');

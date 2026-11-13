@@ -1,6 +1,6 @@
 'use client';
 import { useFormAction } from '@/components/useFormAction';
-import { ExtraDocs, FormFooter, MultiSelect, Section, Select, Text, UploadRow, DateField } from '@/components/fields';
+import { ExtraDocs, FormFooter, MultiSelect, Section, Select, Text, UploadRow, DateRange } from '@/components/fields';
 import { createClientAction, updateClientAction } from '@/lib/actions/clients';
 
 export type ClientFormData = {
@@ -35,8 +35,7 @@ export function ClientForm({ mode, data, amOptions, canEditAms, amNames, cancelH
           note="Inactive clients stay on record but get no new invoices." /> : null}
       </Section>
       <Section title="Master Services Agreement">
-        <DateField name="msa__start" label="MSA start date" value={data.msaStart} required errors={fe} />
-        <DateField name="msa__end" label="MSA end date" value={data.msaEnd} required errors={fe} />
+        <DateRange startName="msa__start" endName="msa__end" startLabel="MSA start date" endLabel="MSA end date" start={data.msaStart} end={data.msaEnd} required errors={fe} />
         <UploadRow name="msa" label="MSA document" existing={data.msaFile} errors={fe} />
         <ExtraDocs />
       </Section>

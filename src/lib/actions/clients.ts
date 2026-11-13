@@ -7,6 +7,7 @@ import { audit } from '../audit';
 import { checkFile, storeFile } from '../files';
 import { addDocumentVersion, extraDocs, uploadField } from '../domain/documents';
 import { monthLong } from '../format';
+import { docDateErrors } from '../validate';
 import type { FormState } from './auth';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,6 +37,7 @@ export async function createClientAction(_: FormState, form: FormData): Promise<
   if (!msa.start) fe.msa__start = 'Enter the MSA start date.';
   if (!msa.end) fe.msa__end = 'Enter the MSA end date.';
   if (msa.file) { const p = await checkFile(msa.file); if (p) fe.msa = p; }
+  docDateErrors(form, ['msa'], fe);
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
   const dup = (await db().from('clients').select('id').ilike('name', f.name).maybeSingle()).data;
   if (dup) return { fieldErrors: { name: 'A client with this name already exists.' } };
@@ -64,6 +66,7 @@ export async function updateClientAction(_: FormState, form: FormData): Promise<
   if (!f.name) fe.name = 'Enter the client name.';
   if (!EMAIL.test(f.email)) fe.email = 'Enter a valid email address.';
   if (msa.file) { const p = await checkFile(msa.file); if (p) fe.msa = p; }
+  docDateErrors(form, ['msa'], fe);
   let ams: string[] = [];
   if (s.persona === 'superadmin') {
     ams = form.getAll('account_managers').map(String);

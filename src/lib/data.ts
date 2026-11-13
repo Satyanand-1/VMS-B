@@ -133,6 +133,14 @@ export function billingPeriods(): string[] {
     return d.toISOString().slice(0, 10);
   });
 }
+// Month filter for staff screens: this calendar month plus the three before it (so people who started this month show too).
+export function thisMonth(): string {
+  return `${todayISO().slice(0, 7)}-01`;
+}
+export function monthOptions(): string[] {
+  const [y, m] = thisMonth().split('-').map(Number);
+  return [0, 1, 2, 3].map((k) => new Date(Date.UTC(y, m - 1 - k, 1)).toISOString().slice(0, 10));
+}
 export function dueDate(period: string) {
   const [y, m] = period.split('-').map(Number);
   return fmtDate(new Date(Date.UTC(y, m, 15)).toISOString().slice(0, 10)); // 15th of the following month

@@ -9,6 +9,7 @@ import { encrypt } from '../crypto';
 import { addDocumentVersion, auditPeriodOf, extraDocs, uploadField } from '../domain/documents';
 import { createLogin, loginNote, passwordFromForm } from '../domain/accounts';
 import { savePaymentTerm } from './vendors';
+import { docDateErrors, phoneError, rangeError } from '../validate';
 import type { FormState } from './auth';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -50,7 +51,10 @@ async function validate(f: ReturnType<typeof personFields>, type: PType, mode: '
   if (!(f.hourly_rate > 0)) fe.hourly_rate = 'Enter the hourly rate.';
   if (type !== 'consultant' && !f.client_id) fe.client_id = 'Choose the client.';
   if (type !== 'consultant' && mode === 'add' && f.ssn.length !== 9) fe.ssn = 'Enter the 9-digit SSN.';
-  if (f.start_date && f.end_date && f.end_date < f.start_date) fe.end_date = 'The end date must be after the start date.';
+  const range = rangeError(f.start_date, f.end_date);
+  if (range) fe.end_date = range;
+  const ph = phoneError(f.phone);
+  if (ph) fe.phone = ph;
   if (!fe.email) {
     const dup = (await db().from('people').select('id').eq('email', f.email).maybeSingle()).data as { id: string } | null;
     const acc = (await db().from('user_accounts').select('id,person_id').eq('email', f.email).maybeSingle()).data as { person_id: string | null } | null;
@@ -63,6 +67,7 @@ async function checkUploads(form: FormData, fields: string[], fe: Record<string,
   for (const n of fields) {
     for (const v of form.getAll(n)) if (v instanceof File && v.size > 0) { const p = await checkFile(v); if (p) fe[n] = p; }
   }
+  docDateErrors(form, fields, fe);
   for (const x of extraDocs(form)) {
     if (x.file && !x.name) fe.extra = 'Enter a name for each other document.';
     if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
@@ -136,7 +141,7 @@ export async function updatePersonAction(_: FormState, form: FormData): Promise<
   if (f.client_id && !canSeeClient(s, f.client_id) && f.client_id !== before.client_id) return { fieldErrors: { client_id: 'Choose one of your clients.' } };
   const fe = await validate(f, before.type, 'edit', id);
   if (before.type !== 'consultant') { const err = await savePaymentTerm(f.payment_term || 'Net 10'); if (err) fe.payment_term = err; }
-  const docs = must(await db().from('documents').select('id,doc_type,uploader_kind').eq('owner_kind', 'person').eq('owner_id', id), 'docs') as { id: string; doc_type: string; uploader_kind: string }[];
+  const docs = must(await db().from('documents').select('id,doc_type,uploader_kind,no_dates,valid_from,valid_to').eq('owner_kind', 'person').eq('owner_id', id), 'docs') as { id: string; doc_type: string; uploader_kind: string; no_dates: boolean; valid_from: string | null; valid_to: string | null }[];
   await checkUploads(form, docs.map((d) => `doc_${d.id}`), fe);
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
 
@@ -158,6 +163,8 @@ export async function updatePersonAction(_: FormState, form: FormData): Promise<
     const u = uploadField(form, `doc_${d.id}`);
     const ap = d.doc_type === 'Audit report' ? auditPeriodOf(u.start, u.period) : null;
     if (u.file) await addDocumentVersion(s, 'person', id, d.doc_type, u.file, ap ? { validTo: ap.end, auditPeriod: ap.label, ownerLabel: f.full_name } : { validFrom: u.start, validTo: u.end, ownerLabel: f.full_name });
+    // Dates changed without a new file: update the document's dates.
+    else if (!ap && !d.no_dates && (u.start || u.end) && (u.start !== d.valid_from || u.end !== d.valid_to)) await db().from('documents').update({ valid_from: u.start, valid_to: u.end }).eq('id', d.id);
   }
   for (const x of extraDocs(form)) if (x.file && x.name) await addDocumentVersion(s, 'person', id, x.name, x.file, { validFrom: x.start, validTo: x.end, ownerLabel: f.full_name });
   await audit(s, 'update', 'person', id, `updated ${f.full_name}`, { ...before, ssn_enc: undefined }, { ...upd, ssn_enc: undefined });

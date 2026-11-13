@@ -41,9 +41,14 @@ export function Text({ name, label, value, required, readOnly, lock, note, full,
   name: string; label: string; value?: string | number | null; required?: boolean; readOnly?: boolean; lock?: string; note?: ReactNode; full?: boolean;
   placeholder?: string; type?: string; errors?: Errors; autoComplete?: string;
 }) {
+  // Phone fields: digits only, plus + ( ) - and spaces; letters are dropped as they are typed or pasted.
+  const phone = !readOnly && /phone$/.test(name);
   return (
     <Field label={label} required={required} lock={readOnly ? lock || 'Auto-filled' : undefined} note={note} full={full} error={errors?.[name]} htmlFor={`f-${name}`}>
-      <input id={`f-${name}`} name={name} type={type} defaultValue={value ?? ''} readOnly={readOnly} className={readOnly ? 'readonly' : undefined} placeholder={placeholder} autoComplete={autoComplete} />
+      <input id={`f-${name}`} name={name} type={phone ? 'tel' : type} defaultValue={value ?? ''} readOnly={readOnly} className={readOnly ? 'readonly' : undefined}
+        placeholder={placeholder ?? (phone ? '+1 (555) 123-4567' : undefined)} autoComplete={autoComplete ?? (phone ? 'tel' : undefined)}
+        inputMode={phone ? 'tel' : undefined} maxLength={phone ? 20 : undefined}
+        onInput={phone ? (e) => { const el = e.currentTarget; const v = el.value.replace(/[^\d+()\-\s]/g, ''); if (v !== el.value) el.value = v; } : undefined} />
     </Field>
   );
 }
@@ -60,11 +65,84 @@ export function Select({ name, label, options, value, required, full, errors, no
   );
 }
 
-export function DateField({ name, label, value, required, errors }: { name: string; label: string; value?: string | null; required?: boolean; errors?: Errors }) {
+/* ---------------- Dates: always shown and typed as MM/DD/YYYY (PRD §7), with a calendar button ---------------- */
+const CALENDAR = <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>;
+const isoToMdy = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso.slice(5, 7)}/${iso.slice(8, 10)}/${iso.slice(0, 4)}` : '');
+function mdyToIso(mdy: string) {
+  const m = mdy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return '';
+  const [, mm, dd, yyyy] = m;
+  const d = new Date(Date.UTC(+yyyy, +mm - 1, +dd));
+  return d.getUTCFullYear() === +yyyy && d.getUTCMonth() === +mm - 1 && d.getUTCDate() === +dd ? `${yyyy}-${mm}-${dd}` : '';
+}
+
+// The form receives the date as YYYY-MM-DD in the hidden native input; the user sees and types MM/DD/YYYY.
+// min: no date before it can be picked or typed (end date ≥ start date).
+export function DateInput({ name, value, min, onChange, id, label }: { name: string; value?: string | null; min?: string | null; onChange?: (iso: string) => void; id?: string; label?: string }) {
+  const [iso, setIso] = useState(value || '');
+  const [text, setText] = useState(isoToMdy(value || ''));
+  const [err, setErr] = useState('');
+  const native = useRef<HTMLInputElement>(null);
+  const set = (v: string) => { setIso(v); setText(isoToMdy(v)); setErr(''); onChange?.(v); };
+  // If the start date moves past this end date, clear it.
+  useEffect(() => { if (min && iso && iso < min) { setIso(''); setText(''); onChange?.(''); setErr(`Choose a date on or after ${isoToMdy(min)}.`); } }, [min]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <>
+      <div className="date-field">
+        <input type="text" id={id} className="date-text" placeholder="MM/DD/YYYY" inputMode="numeric" maxLength={10} value={text} aria-label={label}
+          onChange={(e) => { const d = e.target.value.replace(/\D/g, '').slice(0, 8); setText([d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('/')); }}
+          onBlur={() => {
+            if (!text) { set(''); return; }
+            const v = mdyToIso(text);
+            if (!v) { setErr('Enter a valid date as MM/DD/YYYY.'); return; }
+            if (min && v < min) { setErr(`Choose a date on or after ${isoToMdy(min)}.`); setIso(''); onChange?.(''); return; }
+            set(v);
+          }} />
+        <button type="button" className="date-pick" aria-label="Pick a date" title="Pick a date" onClick={() => { try { native.current?.showPicker(); } catch { native.current?.focus(); } }}>{CALENDAR}</button>
+        <input ref={native} type="date" className="date-native" tabIndex={-1} name={name} value={iso} min={min || undefined} onChange={(e) => set(e.target.value)} />
+      </div>
+      {err ? <span className="field-note date-error">{err}</span> : null}
+    </>
+  );
+}
+
+export function DateField({ name, label, value, required, errors, min, onChange }: { name: string; label: string; value?: string | null; required?: boolean; errors?: Errors; min?: string | null; onChange?: (iso: string) => void }) {
   return (
     <Field label={label} required={required} error={errors?.[name]} htmlFor={`f-${name}`}>
-      <input id={`f-${name}`} type="date" name={name} defaultValue={value ?? ''} />
+      <DateInput id={`f-${name}`} name={name} value={value} min={min} onChange={onChange} label={label} />
     </Field>
+  );
+}
+
+// Start + end date pair: the end date cannot be before the start date.
+export function DateRange({ startName, endName, startLabel = 'Start date', endLabel = 'End date', start, end, required, errors }: {
+  startName: string; endName: string; startLabel?: string; endLabel?: string; start?: string | null; end?: string | null; required?: boolean; errors?: Errors;
+}) {
+  const [from, setFrom] = useState(start || '');
+  return (
+    <>
+      <DateField name={startName} label={startLabel} value={start} required={required} errors={errors} onChange={setFrom} />
+      <DateField name={endName} label={endLabel} value={end} required={required} errors={errors} min={from || null} />
+    </>
+  );
+}
+// Inline start/end cells used in document rows.
+function ValidityCells({ prefix, start, end }: { prefix: string; start?: string | null; end?: string | null }) {
+  const [from, setFrom] = useState(start || '');
+  return (
+    <div className="validity-row">
+      <div className="validity-cell"><span className="expiry-label">Start date</span><DateInput name={`${prefix}__start`} value={start} onChange={setFrom} label="Start date" /></div>
+      <div className="validity-cell"><span className="expiry-label">End date</span><DateInput name={`${prefix}__end`} value={end} min={from || null} label="End date" /></div>
+    </div>
+  );
+}
+function ExtraValidity() {
+  const [from, setFrom] = useState('');
+  return (
+    <div className="validity-row">
+      <div className="validity-cell"><span className="expiry-label">Start date</span><DateInput name="extra_start" onChange={setFrom} label="Start date" /></div>
+      <div className="validity-cell"><span className="expiry-label">End date</span><DateInput name="extra_end" min={from || null} label="End date" /></div>
+    </div>
   );
 }
 
@@ -184,6 +262,7 @@ export function UploadRow({ name, label, existing, dates, auditPeriod, locked, m
       </label>
       <div className="upload-list">
         {files.map((f) => <div key={f.name} className="upload-done"><FileChip name={f.name} size={fmtSize(f.size)} /></div>)}
+        {replace && existing ? <button type="button" className="link-btn" onClick={() => { setReplace(false); setFiles([]); setErr(''); }}>Keep {existing.name}</button> : null}
       </div>
       {err || errors?.[name] ? <span className="field-error">{err || errors?.[name]}</span> : null}
     </>
@@ -194,16 +273,13 @@ export function UploadRow({ name, label, existing, dates, auditPeriod, locked, m
         <>
           <div className="validity-row">
             <div className="validity-cell"><span className="expiry-label">Audit period</span><select name={`${name}__period`}><option>6 months</option><option>3 months</option></select></div>
-            <div className="validity-cell"><span className="expiry-label">Period start</span><input type="date" name={`${name}__start`} /></div>
+            <div className="validity-cell"><span className="expiry-label">Period start</span><DateInput name={`${name}__start`} label="Period start" /></div>
           </div>
           <span className="person-sub">A new report replaces the one shown; earlier reports stay in version history.</span>
         </>
       ) : null}
       {dates && !locked ? (
-        <div className="validity-row">
-          <div className="validity-cell"><span className="expiry-label">Start date</span><input type="date" name={`${name}__start`} defaultValue={dates.start || ''} /></div>
-          <div className="validity-cell"><span className="expiry-label">End date</span><input type="date" name={`${name}__end`} defaultValue={dates.end || ''} /></div>
-        </div>
+        <ValidityCells prefix={name} start={dates.start} end={dates.end} />
       ) : null}
     </>
   );
@@ -234,10 +310,7 @@ export function ExtraDocs({ withDates = true }: { withDates?: boolean }) {
             </div>
             <div className="doc-file"><ExtraFile /></div>
             {withDates ? (
-              <div className="doc-dates"><div className="validity-row">
-                <div className="validity-cell"><span className="expiry-label">Start date</span><input type="date" name="extra_start" /></div>
-                <div className="validity-cell"><span className="expiry-label">End date</span><input type="date" name="extra_end" /></div>
-              </div></div>
+              <div className="doc-dates"><ExtraValidity /></div>
             ) : null}
           </div>
         ))}
