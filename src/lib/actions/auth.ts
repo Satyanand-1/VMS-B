@@ -62,6 +62,7 @@ export async function setNewPassword(_: FormState, form: FormData): Promise<Form
     password_expires_at: isExternal(s.account.role) ? `${addDays(today, PASSWORD_DAYS)}T23:59:59Z` : null
   }).eq('id', s.account.id);
   await audit(s, 'update', 'password', s.account.id, 'set a new password (first sign-in)');
+  await renewSession(s.account.email, pw);
   redirect('/dashboard');
 }
 
@@ -83,7 +84,7 @@ export async function changePassword(_: FormState, form: FormData): Promise<Form
   const checker = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
   const check = await checker.auth.signInWithPassword({ email: s.account.email, password: current });
   if (check.error) return { fieldErrors: { current: 'Current password is incorrect.' } };
-  await checker.auth.signOut();
+  await checker.auth.signOut({ scope: 'local' }); // only this check's session, never the user's browser session
   const { error } = await db().auth.admin.updateUserById(s.account.id, { password: pw });
   if (error) return { error: error.message };
   const expires = addDays(todayISO(), PASSWORD_DAYS);
@@ -91,8 +92,16 @@ export async function changePassword(_: FormState, form: FormData): Promise<Form
     password_set_at: new Date().toISOString(), password_expires_at: `${expires}T23:59:59Z`, must_change_password: false
   }).eq('id', s.account.id);
   await audit(s, 'update', 'password', s.account.id, 'changed password');
+  await renewSession(s.account.email, pw);
   const p = passwordInfo({ ...s.account, password_set_at: new Date().toISOString(), password_expires_at: `${expires}T23:59:59Z`, must_change_password: false });
   redirect(`/dashboard?flash=${encodeURIComponent(`Password changed|Your new password is valid until ${p.expires}.`)}`);
+}
+
+// After a password change Supabase may end the existing session; sign in again with the new password
+// so the user stays signed in and lands on the dashboard.
+async function renewSession(email: string, password: string) {
+  const supabase = await authClient();
+  await supabase.auth.signInWithPassword({ email, password });
 }
 
 export async function signOut() {
