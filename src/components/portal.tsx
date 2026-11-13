@@ -5,7 +5,7 @@ import { DataTable, Modal, ModalClose } from './client';
 import { Badge, DetailCard, FileChip, FileLinks, Muted, PersonCell, Tabs, TextLink, ViewLink } from './ui';
 import { ReplaceFile, ResubmitForm, SubmitForm, type SubmitPerson } from './SubmitForms';
 import { db, must } from '@/lib/supabase/admin';
-import { billingPeriods, clientInvoicesFor, maps, peopleInScope, reviewStatus, submissionsFor, type Person, type Submission } from '@/lib/data';
+import { monthOptions, clientInvoicesFor, maps, peopleInScope, reviewStatus, submissionsFor, type Person, type Submission } from '@/lib/data';
 import { fmtDate, monthLong, monthShort, usd } from '@/lib/format';
 import type { Session } from '@/lib/session';
 
@@ -40,12 +40,18 @@ export async function SubmissionsPortal({ s, sp, path }: { s: Session; sp: Recor
     : [<span key="r" className="mono">{x.ref}</span>, monthShort(x.period), String(Number(x.hours)), usd(x.amount), <Badge key="s" text={shown(x)} />, actions(x)]);
 
   // Upload form data: active people mapped to a client, with months not yet submitted (INV-8)
-  const periods = billingPeriods();
-  const submitPeople: SubmitPerson[] = people.filter((p) => p.client_id && (p.status === 'active' || p.status === 'onboarding')).map((p) => ({
+  // The current month and the three before it, from the month the person starts (someone who started this month can submit for it).
+  const periods = monthOptions();
+  const mapped = people.filter((p) => p.client_id && (p.status === 'active' || p.status === 'onboarding'));
+  const submitPeople: SubmitPerson[] = mapped.map((p) => ({
     id: p.id, name: p.full_name, client: m.client[p.client_id!]?.name, rate: Number(p.hourly_rate),
     term: p.vendor_id ? m.vendor[p.vendor_id]?.payment_term : p.payment_term || 'Net 10',
-    openPeriods: periods.filter((pr) => (!p.start_date || p.start_date <= `${pr.slice(0, 8)}31`) && !subs.some((x) => x.person_id === p.id && x.period === pr)).map((pr) => ({ value: pr, label: monthLong(pr) }))
+    openPeriods: periods.filter((pr) => (!p.start_date || p.start_date.slice(0, 7) <= pr.slice(0, 7)) && (!p.end_date || p.end_date.slice(0, 7) >= pr.slice(0, 7))
+      && !subs.some((x) => x.person_id === p.id && x.period === pr && x.status !== 'superseded')).map((pr) => ({ value: pr, label: monthLong(pr) }))
   })).filter((p) => p.openPeriods.length);
+  const noneNote = !mapped.length
+    ? (vendor ? 'None of your consultants is mapped to a client yet. Contact your account manager.' : 'You are not mapped to a client yet. Contact your account manager.')
+    : `Every open month already has ${w2 ? 'a timesheet' : 'an invoice'}. A rejected one is corrected with Resubmit from its row.`;
 
   let modal = null;
   const close = path;
@@ -53,7 +59,7 @@ export async function SubmissionsPortal({ s, sp, path }: { s: Session; sp: Recor
     modal = (
       <Modal title={w2 ? 'Upload Timesheet' : 'Upload Invoice'} description={w2 ? 'Upload your monthly timesheet. It is reviewed against the client invoice hours.'
         : vendor ? 'Upload the monthly invoice and timesheet for one consultant. It is reviewed against the client invoice hours.' : 'Upload your monthly invoice and timesheet. It is reviewed against the client invoice hours.'} closeHref={close}>
-        <SubmitForm people={submitPeople} w2={w2} vendor={vendor} cancelHref={close} />
+        <SubmitForm people={submitPeople} w2={w2} vendor={vendor} cancelHref={close} emptyNote={noneNote} />
       </Modal>
     );
   }

@@ -23,11 +23,13 @@ export default async function ResourcesPage({ params, searchParams }: { params: 
   const rows = people.map((p) => {
     const sub = activeSubmission(subs, p.id, period);
     const st = sub ? reviewStatus(sub, cis.find((c) => c.person_id === p.id) || null) : 'Not Started';
+    // Nothing is due for a month before the person's start date.
+    const notYet = !sub && p.start_date && p.start_date.slice(0, 7) > period.slice(0, 7);
     return [
       <PersonCell key="p" name={p.full_name} sub={p.role_title || undefined} />,
       p.client_id ? m.client[p.client_id]?.name : '—',
       usd(p.hourly_rate),
-      am ? <Badge key="s" text={st} /> : `${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}`,
+      am ? (notYet ? <span key="s" className="person-sub inline">Starts {fmtDate(p.start_date)}</span> : <Badge key="s" text={st} />) : `${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}`,
       <Badge key="st" text={label(p.status)} />,
       <div key="a" className="row-actions">
         <ViewLink href={`${base}?m=view-person&id=${p.id}`} />

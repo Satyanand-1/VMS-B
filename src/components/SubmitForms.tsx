@@ -10,14 +10,14 @@ const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 export type SubmitPerson = { id: string; name: string; client: string; rate: number; term: string; openPeriods: { value: string; label: string }[] };
 
 // Upload Invoice (vendor per consultant, 1099) / Upload Timesheet (W-2). Only months not yet submitted are offered (INV-8).
-export function SubmitForm({ people, w2, vendor, cancelHref }: { people: SubmitPerson[]; w2: boolean; vendor: boolean; cancelHref: string }) {
+export function SubmitForm({ people, w2, vendor, cancelHref, emptyNote }: { people: SubmitPerson[]; w2: boolean; vendor: boolean; cancelHref: string; emptyNote: string }) {
   const [state, action, pending] = useFormAction(submitAction);
   const [pid, setPid] = useState(people[0]?.id || '');
   const [hours, setHours] = useState('');
   const p = people.find((x) => x.id === pid);
   const fe = state?.fieldErrors;
   const h = Number(hours);
-  if (!people.length) return <div className="modal-content"><div className="review-missing">No active consultant is mapped to a client yet. Contact your account manager.</div></div>;
+  if (!people.length) return <div className="modal-content"><div className="review-missing">{emptyNote}</div></div>;
   return (
     <form className="form-card" onSubmit={action}>
       <Section title={w2 ? 'Timesheet' : 'Invoice'}>
