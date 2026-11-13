@@ -34,3 +34,9 @@ form > button.profile-menu-item { width: 100%; }
 .field-error { color: var(--danger); font-size: 0.8rem; margin-top: 4px; display: block; }
 .form-error-banner { margin: 0 0 12px; }
 .modal.modal-wide { width: min(1100px, 100%); }
+.notif-menu { width: 320px; max-height: 420px; overflow-y: auto; }
+.notif-item { display: flex !important; flex-direction: column; gap: 2px; }
+.login-notice { background: var(--success-soft); color: var(--success); border-radius: 10px; padding: 10px 12px; font-size: 0.86rem; margin-bottom: 4px; }
+.replace-form { display: flex; flex-direction: column; gap: 8px; min-width: 260px; }
+.review-ci { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.nowrap { white-space: nowrap; }

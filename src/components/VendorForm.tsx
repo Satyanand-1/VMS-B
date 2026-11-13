@@ -4,7 +4,6 @@ import { useId } from 'react';
 import { ExtraDocs, FormFooter, PaymentTerm, Section, Select, Text, UploadRow } from './fields';
 import { PasswordBox } from './actions-client';
 import { createVendorAction, updateVendorAction } from '@/lib/actions/vendors';
-import type { FormState } from '@/lib/actions/auth';
 
 const STATES = ['Alabama', 'Arizona', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Illinois', 'Maryland', 'Massachusetts', 'Michigan',
   'Minnesota', 'New Jersey', 'New York', 'North Carolina', 'Ohio', 'Oregon', 'Pennsylvania', 'Texas', 'Virginia', 'Washington'];

@@ -4,7 +4,6 @@ import { useId } from 'react';
 import { DateField, ExtraDocs, FormFooter, PaymentTerm, Section, Select, Text, UploadRow, WorkLocation } from './fields';
 import { PasswordBox } from './actions-client';
 import { createPersonAction, updatePersonAction } from '@/lib/actions/people';
-import type { FormState } from '@/lib/actions/auth';
 
 type PType = 'consultant' | 'w2' | 'w1099';
 export type PersonFormData = {

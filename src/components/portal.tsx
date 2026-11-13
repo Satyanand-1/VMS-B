@@ -5,7 +5,7 @@ import { DataTable, Modal, ModalClose } from './client';
 import { Badge, DetailCard, FileChip, FileLinks, Muted, PersonCell, Tabs, TextLink, ViewLink } from './ui';
 import { ReplaceFile, ResubmitForm, SubmitForm, type SubmitPerson } from './SubmitForms';
 import { db, must } from '@/lib/supabase/admin';
-import { billingPeriods, clientInvoicesFor, label, maps, peopleInScope, reviewStatus, submissionsFor, type Person, type Submission } from '@/lib/data';
+import { billingPeriods, clientInvoicesFor, maps, peopleInScope, reviewStatus, submissionsFor, type Person, type Submission } from '@/lib/data';
 import { fmtDate, monthLong, monthShort, usd } from '@/lib/format';
 import type { Session } from '@/lib/session';
 

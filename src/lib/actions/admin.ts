@@ -132,5 +132,5 @@ export async function acceptInviteAction(_: FormState, form: FormData): Promise<
   await db().from('invites').update({ used_at: new Date().toISOString() }).eq('id', inv.id);
   await db().from('user_accounts').update({ status: 'active', password_set_at: new Date().toISOString() }).eq('id', inv.user_id);
   await audit(null, 'update', 'account_manager', inv.user_id, 'account manager set a password from the invite link');
-  redirect(`/login?notice=${encodeURIComponent('Your password is set. Sign in with your email and new password.')}`);
+  redirect(`/login?ok=${encodeURIComponent('Your password is set. Sign in with your email and new password.')}`);
 }

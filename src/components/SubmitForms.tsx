@@ -3,7 +3,6 @@ import { useFormAction } from '@/components/useFormAction';
 import { useState } from 'react';
 import { FormFooter, Section, UploadRow } from './fields';
 import { resubmitAction, submitAction } from '@/lib/actions/invoices';
-import type { FormState } from '@/lib/actions/auth';
 
 const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;

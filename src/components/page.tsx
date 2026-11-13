@@ -2,6 +2,8 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { BackButton, ProfileMenu } from './client';
+import { Bell, type Note } from './Bell';
+import { fmtDate } from '@/lib/format';
 import { Alert } from './ui';
 import { profileMenuFor } from '@/lib/nav';
 import { signOut } from '@/lib/actions/auth';
@@ -15,6 +17,9 @@ export async function Page({ s, title, parent, description, actions, flash, chil
   flash?: string; children: ReactNode;
 }) {
   const { count } = await db().from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', s.account.id).is('read_at', null);
+  const recent = ((await db().from('notifications').select('*').eq('user_id', s.account.id).order('created_at', { ascending: false }).limit(8)).data || []) as
+    { id: string; title: string; body: string | null; link: string | null; created_at: string; read_at: string | null }[];
+  const notes: Note[] = recent.map((n) => ({ id: n.id, title: n.title, body: n.body, link: n.link, when: fmtDate(n.created_at), unread: !n.read_at }));
   let sub = ROLE_LABEL[s.persona];
   if (s.persona === 'vendor' && s.account.vendor_id) {
     const { data } = await db().from('vendors').select('name').eq('id', s.account.vendor_id).single();
@@ -34,10 +39,7 @@ export async function Page({ s, title, parent, description, actions, flash, chil
           <h1>{title}</h1>
         </div>
         <div className="topbar-actions">
-          <button className="ghost-button notif-button" aria-label="Notifications" type="button">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
-            {count ? <span className="notif-count">{count}</span> : null}
-          </button>
+          <Bell notes={notes} unread={count || 0} />
           <ProfileMenu name={s.account.full_name} sub={sub} email={s.account.email} items={profileMenuFor(s.persona)} signOut={signOut} />
         </div>
       </header>

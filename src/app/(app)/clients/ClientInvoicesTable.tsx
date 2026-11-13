@@ -5,7 +5,6 @@ import { DataTable } from '@/components/client';
 import { FileChip } from '@/components/ui';
 import { fileProblem } from '@/components/fields';
 import { saveClientInvoicesAction } from '@/lib/actions/clients';
-import type { FormState } from '@/lib/actions/auth';
 
 export type CiRow = { personId: string; cells: ReactNode[]; uploaded: boolean; fileCell?: ReactNode; hours?: string; search: string };
 

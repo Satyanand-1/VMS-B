@@ -3,7 +3,6 @@ import { useFormAction } from '@/components/useFormAction';
 import { useState } from 'react';
 import { reviewAction, reviewClientInvoiceAction } from '@/lib/actions/invoices';
 import { UploadRow } from '@/components/fields';
-import type { FormState } from '@/lib/actions/auth';
 
 // Approve / Reject (reason required) — shown only when both documents are in (CI-5).
 export function ReviewActions({ submissionId, back }: { submissionId: string; back: string }) {

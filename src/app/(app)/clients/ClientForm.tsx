@@ -2,7 +2,6 @@
 import { useFormAction } from '@/components/useFormAction';
 import { ExtraDocs, FormFooter, MultiSelect, Section, Select, Text, UploadRow, DateField } from '@/components/fields';
 import { createClientAction, updateClientAction } from '@/lib/actions/clients';
-import type { FormState } from '@/lib/actions/auth';
 
 export type ClientFormData = {
   id?: string; name?: string; email?: string; address?: string | null; currency?: string; time_zone?: string; status?: string;

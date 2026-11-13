@@ -1,7 +1,7 @@
 'use client';
 import { useFormAction } from '@/components/useFormAction';
 import { useState } from 'react';
-import { signIn, type FormState } from '@/lib/actions/auth';
+import { signIn } from '@/lib/actions/auth';
 
 const DEMO = [
   ['a.krishnan@arkhyatech.com', 'Super Admin · Arun Krishnan'],
@@ -14,7 +14,7 @@ const DEMO = [
   ['billing@orbitsystems.com', 'Inactive vendor']
 ];
 
-export function LoginForm({ notice, demo }: { notice?: string; demo: boolean }) {
+export function LoginForm({ notice, ok, demo }: { notice?: string; ok?: string; demo: boolean }) {
   const [state, action, pending] = useFormAction(signIn);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,6 +28,7 @@ export function LoginForm({ notice, demo }: { notice?: string; demo: boolean }) 
         <input type="email" id="loginEmail" name="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
         <label htmlFor="loginPassword">Password</label>
         <input type="password" id="loginPassword" name="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {ok && !state?.error ? <div className="login-notice">{ok}</div> : null}
         {error ? <div className="login-error">{error}</div> : null}
         <button className="btn btn-primary login-button" type="submit" disabled={pending}>{pending ? 'Signing in…' : 'Sign In'}</button>
       </form>

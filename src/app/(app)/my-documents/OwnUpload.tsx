@@ -3,7 +3,6 @@ import { useFormAction } from '@/components/useFormAction';
 import { useState } from 'react';
 import { UploadRow } from '@/components/fields';
 import { uploadOwnDocumentAction } from '@/lib/actions/documents';
-import type { FormState } from '@/lib/actions/auth';
 
 // Upload or Replace one of your own documents (W-9, COI, ACH / W-4, I-9 …) with its dates.
 export function OwnUpload({ docId, docType, hasFile, noDates }: { docId: string; docType: string; hasFile: boolean; noDates: boolean }) {

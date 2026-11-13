@@ -2,7 +2,6 @@
 import { useFormAction } from '@/components/useFormAction';
 import { FormFooter, Section, Text } from '@/components/fields';
 import { updateCompanyProfileAction } from '@/lib/actions/vendors';
-import type { FormState } from '@/lib/actions/auth';
 
 export function ProfileForm({ v, amName }: { v: { name: string; email: string; einMasked: string; address: string | null; phone: string | null; signatory_name: string | null; signatory_phone: string | null; payment_term: string; state: string | null }; amName: string }) {
   const [state, action, pending] = useFormAction(updateCompanyProfileAction);

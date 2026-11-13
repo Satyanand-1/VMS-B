@@ -1,6 +1,6 @@
 'use client';
 import { useFormAction } from '@/components/useFormAction';
-import { setNewPassword, signOut, type FormState } from '@/lib/actions/auth';
+import { setNewPassword, signOut } from '@/lib/actions/auth';
 
 export function SetPasswordForm({ email }: { email: string }) {
   const [state, action, pending] = useFormAction(setNewPassword);

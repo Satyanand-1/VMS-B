@@ -1,7 +1,7 @@
 'use client';
 import { useFormAction } from '@/components/useFormAction';
 import { FormFooter, Section, Text } from '@/components/fields';
-import { changePassword, type FormState } from '@/lib/actions/auth';
+import { changePassword } from '@/lib/actions/auth';
 
 export function ChangePasswordForm({ hint }: { hint: string }) {
   const [state, action, pending] = useFormAction(changePassword);
