@@ -6,7 +6,7 @@ import { db, must } from '../supabase/admin';
 import { requireSession, canSeeClient, canSeePerson, type Session } from '../session';
 import { audit } from '../audit';
 import { sendEmail } from '../email';
-import { checkFile, storeFile } from '../files';
+import { checkFile, storeFile, unstage } from '../files';
 import { monthLong, roundHalfUp } from '../format';
 import type { Submission, Person } from '../data';
 import type { FormState } from './auth';
@@ -51,7 +51,9 @@ export async function reviewAction(_: FormState, form: FormData): Promise<FormSt
 }
 
 // A missing client invoice can be uploaded in the Review pop-up (CI-4).
-export async function reviewClientInvoiceAction(_: FormState, form: FormData): Promise<FormState> {
+export async function reviewClientInvoiceAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['superadmin', 'accountmanager']);
   const personId = String(form.get('person_id'));
   const period = String(form.get('period'));
@@ -102,7 +104,9 @@ async function filesFrom(form: FormData, w2: boolean, required: boolean) {
   return { invoice, timesheet, fe };
 }
 
-export async function submitAction(_: FormState, form: FormData): Promise<FormState> {
+export async function submitAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['vendor', 'w2', 'w9']);
   const personId = s.persona === 'vendor' ? String(form.get('person_id') || '') : s.account.person_id!;
   const period = String(form.get('period') || '');
@@ -137,7 +141,9 @@ export async function submitAction(_: FormState, form: FormData): Promise<FormSt
 }
 
 // Resubmit a rejected submission, or replace a file while In Progress / Rejected (REC-6, REC-7, INV-12).
-export async function resubmitAction(_: FormState, form: FormData): Promise<FormState> {
+export async function resubmitAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['vendor', 'w2', 'w9']);
   const old = must(await db().from('submissions').select('*').eq('id', String(form.get('submission_id'))).single(), 'submission') as Submission;
   const p = await submitter(s, old.person_id);

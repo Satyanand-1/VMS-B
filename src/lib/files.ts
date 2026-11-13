@@ -36,6 +36,25 @@ export async function storeFile(folder: string, file: File): Promise<{ path: str
   return { path, name: file.name, size: file.size, mime: ALLOWED[ext] };
 }
 
+// Step 2 of a form upload: replace every staged-file marker in the form with the real File, read back from storage.
+export const STAGED = '__staged__:';
+const STAGED_PATH = /^staging\/[0-9a-f-]{36}\.(pdf|docx|jpg|jpeg|png)$/;
+export async function unstage(form: FormData): Promise<FormData> {
+  const out = new FormData();
+  for (const [k, v] of form.entries()) {
+    if (typeof v === 'string' && v.startsWith(STAGED)) {
+      let meta: { path: string; name: string; type: string };
+      try { meta = JSON.parse(v.slice(STAGED.length)); } catch { continue; }
+      if (!STAGED_PATH.test(meta.path)) continue;
+      const { data, error } = await db().storage.from(BUCKET).download(meta.path);
+      await db().storage.from(BUCKET).remove([meta.path]);
+      if (error || !data) throw new Error(`Upload failed: could not read ${meta.name}.`);
+      out.append(k, new File([await data.arrayBuffer()], meta.name, { type: meta.type }));
+    } else out.append(k, v);
+  }
+  return out;
+}
+
 export async function signedUrl(path: string, download?: string): Promise<string> {
   const { data, error } = await db().storage.from(BUCKET).createSignedUrl(path, 300, download ? { download } : undefined);
   if (error || !data) throw new Error(`Could not open file: ${error?.message}`);

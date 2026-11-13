@@ -73,7 +73,8 @@ function mdyToIso(mdy: string) {
   if (!m) return '';
   const [, mm, dd, yyyy] = m;
   const d = new Date(Date.UTC(+yyyy, +mm - 1, +dd));
-  return d.getUTCFullYear() === +yyyy && d.getUTCMonth() === +mm - 1 && d.getUTCDate() === +dd ? `${yyyy}-${mm}-${dd}` : '';
+  const real = d.getUTCFullYear() === +yyyy && d.getUTCMonth() === +mm - 1 && d.getUTCDate() === +dd;
+  return real && +yyyy >= 1900 && +yyyy <= 2100 ? `${yyyy}-${mm}-${dd}` : '';
 }
 
 // The form receives the date as YYYY-MM-DD in the hidden native input; the user sees and types MM/DD/YYYY.
@@ -94,12 +95,12 @@ export function DateInput({ name, value, min, onChange, id, label }: { name: str
           onBlur={() => {
             if (!text) { set(''); return; }
             const v = mdyToIso(text);
-            if (!v) { setErr('Enter a valid date as MM/DD/YYYY.'); return; }
+            if (!v) { setErr('Enter a valid date as MM/DD/YYYY (year 1900–2100).'); setIso(''); onChange?.(''); return; }
             if (min && v < min) { setErr(`Choose a date on or after ${isoToMdy(min)}.`); setIso(''); onChange?.(''); return; }
             set(v);
           }} />
         <button type="button" className="date-pick" aria-label="Pick a date" title="Pick a date" onClick={() => { try { native.current?.showPicker(); } catch { native.current?.focus(); } }}>{CALENDAR}</button>
-        <input ref={native} type="date" className="date-native" tabIndex={-1} name={name} value={iso} min={min || undefined} onChange={(e) => set(e.target.value)} />
+        <input ref={native} type="date" className="date-native" tabIndex={-1} name={name} value={iso} min={min || '1900-01-01'} max="2100-12-31" onChange={(e) => set(e.target.value)} />
       </div>
       {err ? <span className="field-note date-error">{err}</span> : null}
     </>
@@ -169,20 +170,33 @@ export function PaymentTerm({ name = 'payment_term', terms, value, errors, readO
 }
 
 // Work location: Remote or a typed location name (TM-2).
+// Saved locations are options of their own; the entry field appears only when "Location" (add new) is chosen,
+// and "Add" turns the typed name into an option and selects it.
+const NEW_LOCATION = '__new__';
 export function WorkLocation({ name = 'work_location', value, errors }: { name?: string; value?: string | null; errors?: Errors }) {
-  const initial = !value || value === 'Remote' ? 'Remote' : 'Location';
-  const [choice, setChoice] = useState(initial);
-  const [loc, setLoc] = useState(initial === 'Location' ? value || '' : '');
+  const [places, setPlaces] = useState<string[]>(value && value !== 'Remote' ? [value] : []);
+  const [choice, setChoice] = useState(value || 'Remote');
+  const [typed, setTyped] = useState('');
+  const add = () => {
+    const t = typed.trim();
+    if (!t) return;
+    const known = ['Remote', ...places].find((p) => p.toLowerCase() === t.toLowerCase());
+    if (!known) setPlaces((p) => [...p, t]);
+    setChoice(known || t); setTyped('');
+  };
   return (
     <Field label="Work location" error={errors?.[name]} htmlFor={`f-${name}`}>
       <select id={`f-${name}`} value={choice} onChange={(e) => setChoice(e.target.value)}>
         <option value="Remote">Remote</option>
-        <option value="Location">{loc ? loc : 'Location'}</option>
+        {places.map((p) => <option key={p} value={p}>{p}</option>)}
+        <option value={NEW_LOCATION}>Location</option>
       </select>
-      <input type="hidden" name={name} value={choice === 'Remote' ? 'Remote' : loc} />
-      {choice === 'Location' ? (
+      <input type="hidden" name={name} value={choice === NEW_LOCATION ? '' : choice} />
+      {choice === NEW_LOCATION ? (
         <div className="custom-term-row add-option-row">
-          <input className="add-option-input" placeholder="Enter location name, e.g. San Francisco, CA" value={loc} onChange={(e) => setLoc(e.target.value)} />
+          <input className="add-option-input" placeholder="Enter location name, e.g. San Francisco, CA" value={typed} onChange={(e) => setTyped(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} aria-label="New location name" />
+          <button type="button" className="btn btn-secondary btn-sm" onClick={add} disabled={!typed.trim()}>Add</button>
         </div>
       ) : null}
     </Field>
@@ -248,25 +262,37 @@ export function UploadRow({ name, label, existing, dates, auditPeriod, locked, m
     setErr(''); setFiles(arr);
   };
   const hasFile = !!existing && !replace;
-  const fileControl = locked ? (
+  // One file input, always in the form; "Replace" opens the file picker straight away.
+  const fileInput = <input ref={input} type="file" name={name} accept=".pdf,.docx,.jpg,.jpeg,.png" multiple={multiple} hidden
+    onChange={(e) => { pick(e.target.files); if (existing && e.target.files?.length) setReplace(true); }} />;
+  const keep = () => { setReplace(false); setFiles([]); setErr(''); if (input.current) input.current.value = ''; };
+  const control = locked ? (
     existing ? <div className="upload-done"><FileChip name={existing.name} size={existing.size} /><span className="lock">View / download only</span></div>
       : <div className="upload-locked">{locked}</div>
   ) : hasFile ? (
-    <div className="upload-done"><FileChip name={existing!.name} size={existing!.size} /><button type="button" className="link-btn" onClick={() => setReplace(true)}>Replace</button></div>
+    <>
+      <div className="upload-done"><FileChip name={existing!.name} size={existing!.size} /><button type="button" className="link-btn" onClick={() => input.current?.click()}>Replace</button></div>
+      {err || errors?.[name] ? <span className="field-error">{err || errors?.[name]}</span> : null}
+    </>
   ) : (
     <>
-      <label className="upload-box compact" role="button" tabIndex={0}>
-        <span className="upload-btn">{UPLOAD_ICON}{multiple ? 'Choose files' : 'Choose file'}</span>
-        <span className="upload-hint">PDF, DOCX, JPG, PNG · max 5 MB{multiple ? ' each · several allowed' : ''}</span>
-        <input ref={input} type="file" name={name} accept=".pdf,.docx,.jpg,.jpeg,.png" multiple={multiple} hidden onChange={(e) => pick(e.target.files)} />
-      </label>
+      {files.length ? null : (
+        <label className="upload-box compact" role="button" tabIndex={0} onClick={(e) => { e.preventDefault(); input.current?.click(); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.current?.click(); } }}>
+          <span className="upload-btn">{UPLOAD_ICON}{multiple ? 'Choose files' : 'Choose file'}</span>
+          <span className="upload-hint">PDF, DOCX, JPG, PNG · max 5 MB{multiple ? ' each · several allowed' : ''}</span>
+        </label>
+      )}
       <div className="upload-list">
         {files.map((f) => <div key={f.name} className="upload-done"><FileChip name={f.name} size={fmtSize(f.size)} /></div>)}
-        {replace && existing ? <button type="button" className="link-btn" onClick={() => { setReplace(false); setFiles([]); setErr(''); }}>Keep {existing.name}</button> : null}
+        {files.length ? <button type="button" className="link-btn" onClick={() => input.current?.click()}>Change</button> : null}
+        {replace && existing ? <button type="button" className="link-btn" onClick={keep}>Keep {existing.name}</button> : null}
       </div>
       {err || errors?.[name] ? <span className="field-error">{err || errors?.[name]}</span> : null}
     </>
   );
+  // The input stays at a fixed position so React keeps the chosen file when the view switches to "replacing".
+  const fileControl = <>{locked ? null : fileInput}{control}</>;
   const datesEl = (
     <>
       {auditPeriod ? (
@@ -284,7 +310,7 @@ export function UploadRow({ name, label, existing, dates, auditPeriod, locked, m
     </>
   );
   const hasDates = auditPeriod || (dates && !locked);
-  const state = locked ? null : (hasFile || files.length) ? <span className="doc-state ok">Uploaded</span> : <span className="doc-state">Not uploaded</span>;
+  const state = locked ? (existing ? <span className="doc-state ok">Uploaded</span> : null) : (hasFile || files.length) ? <span className="doc-state ok">Uploaded</span> : <span className="doc-state">Not uploaded</span>;
   if (!label) return <div className="field doc-field doc-bare">{fileControl}{hasDates ? datesEl : null}{note ? <span className="person-sub">{note}</span> : null}</div>;
   return (
     <div className={`field doc-field ${hasDates ? 'has-dates' : ''}`}>
@@ -296,8 +322,15 @@ export function UploadRow({ name, label, existing, dates, auditPeriod, locked, m
 }
 
 // "Other documents": rows with a typed name, file and dates; "+ Add" adds another row.
-export function ExtraDocs({ withDates = true }: { withDates?: boolean }) {
+// reserved: names already used by this record's documents (MSA, PO, I-9 …); an extra document may not reuse them.
+export function ExtraDocs({ withDates = true, reserved = [] }: { withDates?: boolean; reserved?: string[] }) {
   const [rows, setRows] = useState([0]);
+  const [names, setNames] = useState<Record<number, string>>({});
+  const taken = (id: number) => {
+    const n = (names[id] || '').trim().toLowerCase();
+    if (!n) return false;
+    return reserved.some((r) => r.trim().toLowerCase() === n) || rows.some((o) => o !== id && rows.indexOf(o) < rows.indexOf(id) && (names[o] || '').trim().toLowerCase() === n);
+  };
   return (
     <div className="field full">
       <label>Other documents</label>
@@ -305,8 +338,10 @@ export function ExtraDocs({ withDates = true }: { withDates?: boolean }) {
         {rows.map((id, i) => (
           <div key={id} className={`field doc-field extra-doc ${withDates ? 'has-dates' : ''}`}>
             <div className="doc-name extra-doc-head">
-              <input className="extra-doc-name" name="extra_name" placeholder="Document name" aria-label="Document name" />
+              <input className="extra-doc-name" name="extra_name" placeholder="Document name" aria-label="Document name" value={names[id] || ''}
+                onChange={(e) => setNames((m) => ({ ...m, [id]: e.target.value }))} aria-invalid={taken(id) || undefined} />
               {i > 0 ? <button type="button" className="link-btn link-danger extra-doc-remove" onClick={() => setRows((r) => r.filter((x) => x !== id))}>Remove</button> : null}
+              {taken(id) ? <span className="field-error">A document named “{names[id].trim()}” already exists. Use a different name.</span> : null}
             </div>
             <div className="doc-file"><ExtraFile /></div>
             {withDates ? (

@@ -4,9 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { db, must } from '../supabase/admin';
 import { requireSession, canSeeVendor, canSeePerson } from '../session';
 import { audit } from '../audit';
-import { checkFile } from '../files';
+import { checkFile, unstage } from '../files';
 import { encrypt } from '../crypto';
-import { addDocumentVersion, extraDocs, uploadField } from '../domain/documents';
+import { addDocumentVersion, extraDocs, otherDocs, saveOtherDocs, uploadField } from '../domain/documents';
 import { createLogin, loginNote, passwordFromForm, sendNewPassword } from '../domain/accounts';
 import { docDateErrors, phoneError } from '../validate';
 import type { FormState } from './auth';
@@ -24,20 +24,21 @@ export async function savePaymentTerm(term: string): Promise<string | null> {
   return null;
 }
 
-async function checkDocs(form: FormData, names: string[], fe: Record<string, string>) {
+const VENDOR_DOCS = ['MSA', 'PO', 'W-9', 'COI', 'ACH form'];
+async function checkDocs(form: FormData, names: string[], fe: Record<string, string>, reserved: string[] = []) {
+  // Every vendor document the account manager uploads has a start and end date.
+  docDateErrors(form, names, fe, { dated: names, reserved: [...VENDOR_DOCS, ...reserved] });
   for (const n of names) {
     const u = uploadField(form, n);
     if (u.file) { const p = await checkFile(u.file); if (p) fe[n] = p; }
   }
-  docDateErrors(form, names, fe);
-  for (const x of extraDocs(form)) {
-    if (x.file && !x.name) fe.extra = 'Enter a name for each other document.';
-    if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
-  }
+  for (const x of extraDocs(form)) if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
 }
 
 // VN-3: Add Vendor (Super Admin, or Account Manager for themselves) + login details email (AUTH-2).
-export async function createVendorAction(_: FormState, form: FormData): Promise<FormState> {
+export async function createVendorAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['superadmin', 'accountmanager']);
   const v = {
     name: String(form.get('name') || '').trim(), address: String(form.get('address') || '').trim(), email: String(form.get('email') || '').trim().toLowerCase(),
@@ -90,7 +91,9 @@ export async function createVendorAction(_: FormState, form: FormData): Promise<
 }
 
 // Edit Vendor (Super Admin; Account Manager for own vendors). Name, EIN and email are admin-managed and read-only.
-export async function updateVendorAction(_: FormState, form: FormData): Promise<FormState> {
+export async function updateVendorAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['superadmin', 'accountmanager']);
   const id = String(form.get('id'));
   if (!canSeeVendor(s, id)) return { error: 'You do not have access to this vendor.' };
@@ -111,9 +114,11 @@ export async function updateVendorAction(_: FormState, form: FormData): Promise<
   if (!upd.signatory_name) fe.signatory_name = 'Enter the authorized signatory name.';
   const termErr = await savePaymentTerm(String(upd.payment_term));
   if (termErr) fe.payment_term = termErr;
-  await checkDocs(form, ['msa', 'po'], fe);
+  const { all, others } = await otherDocs('vendor', id, VENDOR_DOCS);
+  await checkDocs(form, ['msa', 'po', ...others.map((d) => `doc_${d.id}`)], fe, all);
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
   must(await db().from('vendors').update(upd).eq('id', id), 'update vendor');
+  await saveOtherDocs(s, 'vendor', id, before.name, form, others);
   for (const [n, type] of [['msa', 'MSA'], ['po', 'PO']] as const) {
     const u = uploadField(form, n);
     if (u.file) await addDocumentVersion(s, 'vendor', id, type, u.file, { validFrom: u.start, validTo: u.end, ownerLabel: before.name });

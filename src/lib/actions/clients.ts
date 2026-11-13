@@ -4,8 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { db, must } from '../supabase/admin';
 import { requireSession, canSeeClient, isStaff } from '../session';
 import { audit } from '../audit';
-import { checkFile, storeFile } from '../files';
-import { addDocumentVersion, extraDocs, uploadField } from '../domain/documents';
+import { checkFile, storeFile, unstage } from '../files';
+import { addDocumentVersion, extraDocs, otherDocs, saveOtherDocs, uploadField } from '../domain/documents';
+const CLIENT_DOCS = ['MSA', 'MSA document', 'Master Services Agreement'];
 import { monthLong } from '../format';
 import { docDateErrors } from '../validate';
 import type { FormState } from './auth';
@@ -25,7 +26,9 @@ function clientFields(form: FormData) {
 }
 
 // CL-4: Super Admin only.
-export async function createClientAction(_: FormState, form: FormData): Promise<FormState> {
+export async function createClientAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['superadmin']);
   const f = clientFields(form);
   const ams = form.getAll('account_managers').map(String);
@@ -37,7 +40,8 @@ export async function createClientAction(_: FormState, form: FormData): Promise<
   if (!msa.start) fe.msa__start = 'Enter the MSA start date.';
   if (!msa.end) fe.msa__end = 'Enter the MSA end date.';
   if (msa.file) { const p = await checkFile(msa.file); if (p) fe.msa = p; }
-  docDateErrors(form, ['msa'], fe);
+  docDateErrors(form, ['msa'], fe, { reserved: CLIENT_DOCS });
+  for (const x of extraDocs(form)) if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
   const dup = (await db().from('clients').select('id').ilike('name', f.name).maybeSingle()).data;
   if (dup) return { fieldErrors: { name: 'A client with this name already exists.' } };
@@ -54,7 +58,9 @@ export async function createClientAction(_: FormState, form: FormData): Promise<
 }
 
 // CL-6 / CL-8: Super Admin edits everything; an Account Manager edits their own client but not its account managers.
-export async function updateClientAction(_: FormState, form: FormData): Promise<FormState> {
+export async function updateClientAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['superadmin', 'accountmanager']);
   const id = String(form.get('id'));
   if (!canSeeClient(s, id)) return { error: 'You do not have access to this client.' };
@@ -65,8 +71,13 @@ export async function updateClientAction(_: FormState, form: FormData): Promise<
   const fe: Record<string, string> = {};
   if (!f.name) fe.name = 'Enter the client name.';
   if (!EMAIL.test(f.email)) fe.email = 'Enter a valid email address.';
+  if (!msa.start) fe.msa__start = 'Enter the MSA start date.';
+  if (!msa.end) fe.msa__end = 'Enter the MSA end date.';
   if (msa.file) { const p = await checkFile(msa.file); if (p) fe.msa = p; }
-  docDateErrors(form, ['msa'], fe);
+  const { all, others } = await otherDocs('client', id, ['MSA']);
+  docDateErrors(form, ['msa', ...others.map((d) => `doc_${d.id}`)], fe, { dated: others.map((d) => `doc_${d.id}`), reserved: [...CLIENT_DOCS, ...all] });
+  for (const d of others) { const u = uploadField(form, `doc_${d.id}`); if (u.file) { const p = await checkFile(u.file); if (p) fe[`doc_${d.id}`] = p; } }
+  for (const x of extraDocs(form)) if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
   let ams: string[] = [];
   if (s.persona === 'superadmin') {
     ams = form.getAll('account_managers').map(String);
@@ -85,6 +96,7 @@ export async function updateClientAction(_: FormState, form: FormData): Promise<
   }
   if (msa.file) await addDocumentVersion(s, 'client', id, 'MSA', msa.file, { validFrom: msa.start, validTo: msa.end, ownerLabel: f.name });
   else if (msa.start || msa.end) await db().from('documents').update({ valid_from: msa.start, valid_to: msa.end }).eq('owner_kind', 'client').eq('owner_id', id).eq('doc_type', 'MSA');
+  await saveOtherDocs(s, 'client', id, f.name, form, others);
   for (const x of extraDocs(form)) if (x.file && x.name) await addDocumentVersion(s, 'client', id, x.name, x.file, { validFrom: x.start, validTo: x.end, ownerLabel: f.name });
   await audit(s, 'update', 'client', id, `updated client ${f.name}`, before, { ...f, status });
   revalidatePath('/clients');
@@ -92,7 +104,9 @@ export async function updateClientAction(_: FormState, form: FormData): Promise<
 }
 
 // CL-3: upload the client invoice (file + billable hours) for every row filled in, in one save.
-export async function saveClientInvoicesAction(_: FormState, form: FormData): Promise<FormState> {
+export async function saveClientInvoicesAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['superadmin', 'accountmanager']);
   if (!isStaff(s)) return { error: 'Not allowed.' };
   const period = String(form.get('period'));

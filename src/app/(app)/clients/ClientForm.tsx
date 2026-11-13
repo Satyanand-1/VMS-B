@@ -6,6 +6,7 @@ import { createClientAction, updateClientAction } from '@/lib/actions/clients';
 export type ClientFormData = {
   id?: string; name?: string; email?: string; address?: string | null; currency?: string; time_zone?: string; status?: string;
   ams: string[]; msaStart?: string | null; msaEnd?: string | null; msaFile?: { name: string; size?: string } | null;
+  others?: { id: string; doc_type: string; start: string | null; end: string | null; file: { name: string; size?: string } | null }[];
 };
 
 const ZONES = [
@@ -37,7 +38,9 @@ export function ClientForm({ mode, data, amOptions, canEditAms, amNames, cancelH
       <Section title="Master Services Agreement">
         <DateRange startName="msa__start" endName="msa__end" startLabel="MSA start date" endLabel="MSA end date" start={data.msaStart} end={data.msaEnd} required errors={fe} />
         <UploadRow name="msa" label="MSA document" existing={data.msaFile} errors={fe} />
-        <ExtraDocs />
+        {(data.others || []).map((d) => <UploadRow key={d.id} name={`doc_${d.id}`} label={d.doc_type} existing={d.file} dates={{ start: d.start, end: d.end }} errors={fe} />)}
+        <ExtraDocs reserved={['MSA', 'MSA document', 'Master Services Agreement', ...(data.others || []).map((d) => d.doc_type)]} />
+        {fe?.extra ? <span className="field-error">{fe.extra}</span> : null}
       </Section>
       <FormFooter cancelHref={cancelHref} submitLabel="Save Client" pending={pending} error={state?.error} />
     </form>

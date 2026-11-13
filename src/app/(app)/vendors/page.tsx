@@ -126,7 +126,10 @@ async function vendorModal(sp: Record<string, string>, s: Session, m: Awaited<Re
           cancelHref={close} signIn={await signInInfo({ vendorId: v.id })}
           data={{ ...v, einMasked: v.ein_last4 ? `••-•••${v.ein_last4}` : '',
             msa: { start: msa?.valid_from || null, end: msa?.valid_to || null, file: msa?.current ? { name: msa.current.file_name, size: msa.size } : null },
-            po: { start: po?.valid_from || null, end: po?.valid_to || null, file: po?.current ? { name: po.current.file_name, size: po.size } : null } }} />
+            po: { start: po?.valid_from || null, end: po?.valid_to || null, file: po?.current ? { name: po.current.file_name, size: po.size } : null },
+            others: docs.filter((d) => d.uploader_kind === 'staff' && !['MSA', 'PO'].includes(d.doc_type)).map((d) => ({
+              id: d.id, doc_type: d.doc_type, start: d.valid_from, end: d.valid_to, file: d.current ? { name: d.current.file_name, size: d.size } : null })),
+            takenNames: docs.map((d) => d.doc_type) }} />
       </Modal>
     );
   }

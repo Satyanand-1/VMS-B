@@ -53,6 +53,21 @@ export function auditPeriodOf(start: string | null, period: string | null) {
   return { label: `${fmt(start)} – ${fmt(end)} (${months} months)`, end };
 }
 
+// Documents the account manager added under "Other documents" (not the fixed ones); Edit forms show them as doc_<id> rows.
+export type OtherDoc = { id: string; doc_type: string; valid_from: string | null; valid_to: string | null };
+export async function otherDocs(ownerKind: 'vendor' | 'client', ownerId: string, fixed: string[]) {
+  const rows = must(await db().from('documents').select('id,doc_type,uploader_kind,valid_from,valid_to').eq('owner_kind', ownerKind).eq('owner_id', ownerId), 'docs') as (OtherDoc & { uploader_kind: string })[];
+  return { all: rows.map((r) => r.doc_type), others: rows.filter((r) => r.uploader_kind === 'staff' && !fixed.includes(r.doc_type)) };
+}
+// New version (file chosen) or changed dates for each "other" document row of an Edit form.
+export async function saveOtherDocs(s: Session, ownerKind: 'vendor' | 'client', ownerId: string, label: string, form: FormData, others: OtherDoc[]) {
+  for (const d of others) {
+    const u = uploadField(form, `doc_${d.id}`);
+    if (u.file) await addDocumentVersion(s, ownerKind, ownerId, d.doc_type, u.file, { validFrom: u.start, validTo: u.end, ownerLabel: label });
+    else if ((u.start || u.end) && (u.start !== d.valid_from || u.end !== d.valid_to)) await db().from('documents').update({ valid_from: u.start, valid_to: u.end }).eq('id', d.id);
+  }
+}
+
 // "Other documents" rows: extra_name[], extra_file[], extra_start[], extra_end[].
 export function extraDocs(form: FormData) {
   const names = form.getAll('extra_name').map(String);

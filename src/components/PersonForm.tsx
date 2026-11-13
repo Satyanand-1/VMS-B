@@ -20,6 +20,8 @@ const ADD_DOCS: Record<PType, { label: string; field: string; dates: boolean; mu
   w1099: [{ label: '1099 contract', field: 'doc_contract', dates: true }, { label: '1099 (year end)', field: 'doc_yearend', dates: true }]
 };
 
+const SELF_DOC_NAMES: Record<PType, string[]> = { consultant: [], w2: ['W-4', 'I-9', 'ACH form'], w1099: ['W-9', 'I-9', 'ACH form'] };
+
 export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions, canEditAm, amName, docs, signIn, back, cancelHref }: {
   mode: 'add' | 'edit'; type: PType; data: PersonFormData; vendor?: { id: string; name: string; payment_term: string; contact: string } | null;
   clients: { value: string; label: string }[]; terms: string[]; amOptions?: { value: string; label: string }[]; canEditAm?: boolean; amName?: string;
@@ -86,12 +88,12 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
           ) : (docs || []).map((d) => {
             const self = d.uploader_kind !== 'staff';
             return <UploadRow key={d.id} name={`doc_${d.id}`} label={d.doc_type} existing={d.current} errors={fe}
-              locked={self ? 'Uploaded by the resource.' : undefined}
+              locked={self ? 'Not uploaded yet · the resource uploads this document.' : undefined}
               auditPeriod={!self && d.doc_type === 'Audit report'}
               note={d.audit_period ? `Latest report · covers ${d.audit_period}` : undefined}
               dates={!self && !d.no_dates && d.doc_type !== 'Audit report' ? { start: d.valid_from, end: d.valid_to } : false} />;
           })}
-          <ExtraDocs />
+          <ExtraDocs reserved={[...ADD_DOCS[type].map((d) => d.label), 'Audit report', ...SELF_DOC_NAMES[type], ...(docs || []).map((d) => d.doc_type)]} />
           {fe?.extra ? <span className="field-error">{fe.extra}</span> : null}
         </Section>
         {!consultant && mode === 'add' ? (

@@ -19,10 +19,10 @@ export default async function MyDocumentsPage({ searchParams }: { searchParams: 
     return vendor
       ? [d.doc_type, version, d.current ? fmtDate(d.current.uploaded_at) : '—', <Badge key="s" text={d.status} />,
         <div key="a" className="row-actions">{d.current ? <FileLinks fileKey={`d-${d.current.id}`} name={d.current.file_name} /> : null}
-          {mine ? <OwnUpload docId={d.id} docType={d.doc_type} hasFile={!!d.current} noDates={d.no_dates} /> : <span className="lock">Uploaded by account manager</span>}</div>]
+          {mine ? <OwnUpload docId={d.id} docType={d.doc_type} hasFile={!!d.current} noDates={d.no_dates} start={d.valid_from} end={d.valid_to} /> : <span className="lock">Uploaded by account manager</span>}</div>]
       : [d.doc_type, d.current ? fmtDate(d.current.uploaded_at) : '—', d.no_dates || d.doc_type === 'Resume' ? '—' : fmtDate(d.valid_to), <Badge key="s" text={d.status} />,
         <div key="a" className="row-actions">{d.current ? <FileLinks fileKey={`d-${d.current.id}`} name={d.current.file_name} /> : <Muted>Not uploaded</Muted>}
-          {mine ? <OwnUpload docId={d.id} docType={d.doc_type} hasFile={!!d.current} noDates={d.no_dates} /> : null}</div>];
+          {mine ? <OwnUpload docId={d.id} docType={d.doc_type} hasFile={!!d.current} noDates={d.no_dates} start={d.valid_from} end={d.valid_to} /> : null}</div>];
   });
   return (
     <Page s={s} title={vendor ? 'Documents' : 'My Documents'} flash={sp.flash}

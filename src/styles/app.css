@@ -40,3 +40,7 @@ form > button.profile-menu-item { width: 100%; }
 .replace-form { display: flex; flex-direction: column; gap: 8px; min-width: 260px; }
 .review-ci { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
 .nowrap { white-space: nowrap; }
+
+/* My Documents: Upload / Replace button opens the file picker directly */
+.replace-inline { display: inline; }
+

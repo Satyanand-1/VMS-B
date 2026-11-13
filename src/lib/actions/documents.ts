@@ -5,7 +5,8 @@ import { db, must } from '../supabase/admin';
 import { requireSession, canSeeClient, canSeePerson, canSeeVendor, isStaff, type Session } from '../session';
 import { audit } from '../audit';
 import { sendEmail } from '../email';
-import { checkFile } from '../files';
+import { checkFile, unstage } from '../files';
+import { rangeError } from '../validate';
 import { addDocumentVersion, uploadField } from '../domain/documents';
 import type { FormState } from './auth';
 
@@ -56,7 +57,9 @@ export async function notApplicableAction(_: FormState, form: FormData): Promise
 }
 
 // Vendor (W-9, COI, ACH) and resource (W-4 / W-9, I-9, ACH) upload or replace their own documents (VN-4, VN-6, TM-5, TM-7).
-export async function uploadOwnDocumentAction(_: FormState, form: FormData): Promise<FormState> {
+export async function uploadOwnDocumentAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['vendor', 'w2', 'w9']);
   const d = (await db().from('documents').select('id,owner_kind,owner_id,doc_type,uploader_kind').eq('id', String(form.get('document_id'))).maybeSingle()).data as DocRow | null;
   if (!d) return { error: 'Document not found.' };
@@ -68,7 +71,8 @@ export async function uploadOwnDocumentAction(_: FormState, form: FormData): Pro
   const problem = await checkFile(u.file);
   if (problem) return { error: problem };
   if (d.doc_type !== 'ACH form' && (!u.start || !u.end)) return { error: 'Enter the start and end date.' };
-  if (u.start && u.end && u.end < u.start) return { error: 'The end date must be after the start date.' };
+  const range = rangeError(u.start, u.end);
+  if (range) return { error: range };
   await addDocumentVersion(s, d.owner_kind as 'vendor' | 'person', d.owner_id, d.doc_type, u.file, { uploader: s.persona === 'vendor' ? 'vendor' : 'resource', validFrom: u.start, validTo: u.end });
   revalidatePath('/my-documents');
   redirect(`/my-documents?flash=${encodeURIComponent(`${d.doc_type} uploaded|The earlier version is kept in history.`)}`);

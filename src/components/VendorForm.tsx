@@ -13,6 +13,9 @@ export type VendorFormData = {
   signatory_name?: string | null; signatory_phone?: string | null; payment_term?: string; account_manager_id?: string; status?: string;
   msa?: { start: string | null; end: string | null; file: { name: string; size?: string } | null };
   po?: { start: string | null; end: string | null; file: { name: string; size?: string } | null };
+  // Documents added under "Other documents"; editable (Replace, dates) like MSA and PO.
+  others?: { id: string; doc_type: string; start: string | null; end: string | null; file: { name: string; size?: string } | null }[];
+  takenNames?: string[];
 };
 
 export function VendorForm({ mode, data, terms, amOptions, canPickAm, amName, signIn, cancelHref }: {
@@ -45,7 +48,8 @@ export function VendorForm({ mode, data, terms, amOptions, canPickAm, amName, si
         <Section title="Documents uploaded by the account manager" hint="PDF, DOCX, JPG or PNG · max 5 MB. Enter the start and end date of each. Documents not uploaded now are marked Incomplete in the Document Tracker.">
           <UploadRow name="msa" label="MSA" existing={data.msa?.file} dates={{ start: data.msa?.start, end: data.msa?.end }} errors={fe} />
           <UploadRow name="po" label="PO" existing={data.po?.file} dates={{ start: data.po?.start, end: data.po?.end }} errors={fe} />
-          <ExtraDocs />
+          {(data.others || []).map((d) => <UploadRow key={d.id} name={`doc_${d.id}`} label={d.doc_type} existing={d.file} dates={{ start: d.start, end: d.end }} errors={fe} />)}
+          <ExtraDocs reserved={['MSA', 'PO', 'W-9', 'COI', 'ACH form', ...(data.takenNames || [])]} />
           {fe?.extra ? <span className="field-error">{fe.extra}</span> : null}
         </Section>
         {add ? (

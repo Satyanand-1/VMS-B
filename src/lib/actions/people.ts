@@ -4,12 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { db, must } from '../supabase/admin';
 import { requireSession, canSeeVendor, canSeeClient, canSeePerson } from '../session';
 import { audit } from '../audit';
-import { checkFile } from '../files';
+import { checkFile, unstage } from '../files';
 import { encrypt } from '../crypto';
 import { addDocumentVersion, auditPeriodOf, extraDocs, uploadField } from '../domain/documents';
 import { createLogin, loginNote, passwordFromForm } from '../domain/accounts';
 import { savePaymentTerm } from './vendors';
-import { docDateErrors, phoneError, rangeError } from '../validate';
+import { badDate, docDateErrors, durationError, phoneError, rangeError } from '../validate';
 import type { FormState } from './auth';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -38,7 +38,7 @@ function personFields(form: FormData) {
     start_date: String(form.get('start_date') || '') || null,
     end_date: String(form.get('end_date') || '') || null,
     duration: String(form.get('duration') || '').trim() || null,
-    work_location: String(form.get('work_location') || 'Remote').trim() || 'Remote',
+    work_location: String(form.get('work_location') ?? 'Remote').trim(),
     payment_term: String(form.get('payment_term') || '').trim()
   };
 }
@@ -55,6 +55,11 @@ async function validate(f: ReturnType<typeof personFields>, type: PType, mode: '
   if (range) fe.end_date = range;
   const ph = phoneError(f.phone);
   if (ph) fe.phone = ph;
+  if (badDate(f.start_date)) fe.start_date = 'Enter a valid date (MM/DD/YYYY, year 1900–2100).';
+  const du = durationError(f.duration);
+  if (du) fe.duration = du;
+  if (!f.work_location) fe.work_location = 'Type the location name and click Add, or choose Remote.';
+  if (type !== 'consultant' && !f.payment_term) fe.payment_term = 'Choose the payment term, or type a custom term (Net + days).';
   if (!fe.email) {
     const dup = (await db().from('people').select('id').eq('email', f.email).maybeSingle()).data as { id: string } | null;
     const acc = (await db().from('user_accounts').select('id,person_id').eq('email', f.email).maybeSingle()).data as { person_id: string | null } | null;
@@ -63,19 +68,20 @@ async function validate(f: ReturnType<typeof personFields>, type: PType, mode: '
   return fe;
 }
 
-async function checkUploads(form: FormData, fields: string[], fe: Record<string, string>) {
+async function checkUploads(form: FormData, fields: string[], fe: Record<string, string>, opts: { dated: string[]; reserved: string[] }) {
+  docDateErrors(form, fields, fe, opts);
   for (const n of fields) {
     for (const v of form.getAll(n)) if (v instanceof File && v.size > 0) { const p = await checkFile(v); if (p) fe[n] = p; }
   }
-  docDateErrors(form, fields, fe);
-  for (const x of extraDocs(form)) {
-    if (x.file && !x.name) fe.extra = 'Enter a name for each other document.';
-    if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
-  }
+  for (const x of extraDocs(form)) if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
 }
+// Names an "Other document" may not use: the standard documents of this person type (and their form labels).
+const reservedNames = (type: PType) => [...STAFF_DOCS[type].map((d) => d.name), ...SELF_DOCS[type], 'Audit report', 'Contract', 'W-9', 'W-4'];
 
 // Add Consultant (TM-2) / Add W-2 Resource (TM-4, TM-5) / Add 1099 Resource (TM-6, TM-7) + login details email.
-export async function createPersonAction(_: FormState, form: FormData): Promise<FormState> {
+export async function createPersonAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['superadmin', 'accountmanager']);
   const type = String(form.get('type')) as PType;
   const vendorId = type === 'consultant' ? String(form.get('vendor_id') || '') : null;
@@ -87,7 +93,10 @@ export async function createPersonAction(_: FormState, form: FormData): Promise<
   let term = f.payment_term;
   if (vendorId) term = (must(await db().from('vendors').select('payment_term').eq('id', vendorId).single(), 'vendor') as { payment_term: string }).payment_term;
   else { const err = await savePaymentTerm(term || 'Net 10'); if (err) fe.payment_term = err; }
-  await checkUploads(form, [...STAFF_DOCS[type].map((d) => d.field), 'doc_audit'], fe);
+  await checkUploads(form, [...STAFF_DOCS[type].map((d) => d.field), 'doc_audit'], fe,
+    { dated: STAFF_DOCS[type].filter((d) => d.dates).map((d) => d.field), reserved: reservedNames(type) });
+  const auditUp = uploadField(form, 'doc_audit');
+  if (auditUp.file && !auditUp.start) fe.doc_audit = 'Enter the audit period start date.';
   const pw = type === 'consultant' ? {} : passwordFromForm(form);
   if (pw.error) fe.pw_value = pw.error;
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
@@ -131,7 +140,9 @@ async function amFor(vendorId: string | null, clientId: string | null) {
 }
 
 // TM-13: Edit person (Super Admin; Account Manager within scope). Every change is audited.
-export async function updatePersonAction(_: FormState, form: FormData): Promise<FormState> {
+export async function updatePersonAction(_: FormState, raw: FormData): Promise<FormState> {
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const s = await requireSession(['superadmin', 'accountmanager']);
   const id = String(form.get('id'));
   const back = String(form.get('back') || '/vendors');
@@ -142,7 +153,14 @@ export async function updatePersonAction(_: FormState, form: FormData): Promise<
   const fe = await validate(f, before.type, 'edit', id);
   if (before.type !== 'consultant') { const err = await savePaymentTerm(f.payment_term || 'Net 10'); if (err) fe.payment_term = err; }
   const docs = must(await db().from('documents').select('id,doc_type,uploader_kind,no_dates,valid_from,valid_to').eq('owner_kind', 'person').eq('owner_id', id), 'docs') as { id: string; doc_type: string; uploader_kind: string; no_dates: boolean; valid_from: string | null; valid_to: string | null }[];
-  await checkUploads(form, docs.map((d) => `doc_${d.id}`), fe);
+  await checkUploads(form, docs.map((d) => `doc_${d.id}`), fe, {
+    dated: docs.filter((d) => d.uploader_kind === 'staff' && !d.no_dates && d.doc_type !== 'Audit report').map((d) => `doc_${d.id}`),
+    reserved: [...reservedNames(before.type), ...docs.map((d) => d.doc_type)]
+  });
+  for (const d of docs) {
+    const u = uploadField(form, `doc_${d.id}`);
+    if (d.doc_type === 'Audit report' && u.file && !u.start) fe[`doc_${d.id}`] = 'Enter the audit period start date.';
+  }
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
 
   const upd: Record<string, unknown> = {

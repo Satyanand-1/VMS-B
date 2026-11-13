@@ -136,7 +136,9 @@ async function clientModal(sp: Record<string, string>, s: Awaited<ReturnType<typ
       <Modal title="Edit Client" description="Review and update the client profile, account assignment and MSA." closeHref={closeHref}>
         <ClientForm mode="edit" cancelHref={closeHref} canEditAms={s.persona === 'superadmin'} amNames={amNames} amOptions={await amOptions()}
           data={{ id: c.id, name: c.name, email: c.email, address: c.address, currency: c.currency, time_zone: c.time_zone, status: c.status, ams: amIds,
-            msaStart: msa?.valid_from, msaEnd: msa?.valid_to, msaFile: msa?.current ? { name: msa.current.file_name, size: msa.size } : null }} />
+            msaStart: msa?.valid_from, msaEnd: msa?.valid_to, msaFile: msa?.current ? { name: msa.current.file_name, size: msa.size } : null,
+            others: docs.filter((d) => d.doc_type !== 'MSA').map((d) => ({ id: d.id, doc_type: d.doc_type, start: d.valid_from, end: d.valid_to,
+              file: d.current ? { name: d.current.file_name, size: d.size } : null })) }} />
       </Modal>
     );
   }
