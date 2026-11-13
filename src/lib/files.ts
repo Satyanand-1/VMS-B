@@ -14,7 +14,8 @@ export const MAX_BYTES = 5 * 1024 * 1024;
 
 // INV-5: PDF, DOCX, JPG, JPEG, PNG; max 5 MB. Checked by extension and by the file's first bytes.
 export async function checkFile(file: File | null | undefined): Promise<string | null> {
-  if (!file || file.size === 0) return 'Choose a file.';
+  if (!file) return 'Choose a file.';
+  if (file.size === 0) return `“${file.name}” is empty (0 KB). Open it, add the content and save it, then choose it again.`;
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
   if (!ALLOWED[ext]) return 'Only PDF, DOCX, JPG, JPEG or PNG.';
   if (file.size > MAX_BYTES) return 'Max 5 MB per file.';

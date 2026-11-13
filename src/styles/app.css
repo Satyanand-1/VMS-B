@@ -44,3 +44,13 @@ form > button.profile-menu-item { width: 100%; }
 /* My Documents: Upload / Replace button opens the file picker directly */
 .replace-inline { display: inline; }
 
+
+/* Long file names never run out of their box: they are shortened with … (full name on hover). */
+.file-chip { min-width: 0; max-width: 100%; }
+.file-chip .file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-done { min-width: 0; }
+.upload-done > .file-chip { flex: 1 1 auto; }
+.doc-cell { min-width: 0; max-width: 100%; }
+/* Upload / Replace form on My Documents: name, then file, then dates and buttons, stacked so nothing overlaps. */
+.replace-form .doc-field.has-dates:not(.doc-bare) { grid-template-columns: 1fr; }
+.replace-form .field-error { white-space: normal; }

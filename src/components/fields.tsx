@@ -7,8 +7,10 @@ import { FileChip } from './ui';
 const UPLOAD_ICON = <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" /></svg>;
 const TYPES = ['pdf', 'docx', 'jpg', 'jpeg', 'png'];
 const MAX = 5 * 1024 * 1024;
-export const fileProblem = (f: File) => (!TYPES.includes(f.name.split('.').pop()?.toLowerCase() || '') ? 'Only PDF, DOCX, JPG, JPEG or PNG.' : f.size > MAX ? 'Max 5 MB per file.' : '');
-const fmtSize = (b: number) => (b < 1048576 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`);
+export const fileProblem = (f: File) => (!TYPES.includes(f.name.split('.').pop()?.toLowerCase() || '') ? 'Only PDF, DOCX, JPG, JPEG or PNG.'
+  : f.size === 0 ? `“${f.name}” is empty (0 KB). Open it, add the content and save it, then choose it again.`
+  : f.size > MAX ? 'Max 5 MB per file.' : '');
+const fmtSize = (b: number) => (b < 1048576 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1048576).toFixed(1)} MB`);
 
 export type Errors = Record<string, string> | undefined;
 
@@ -91,7 +93,15 @@ export function DateInput({ name, value, min, onChange, id, label }: { name: str
     <>
       <div className="date-field">
         <input type="text" id={id} className="date-text" placeholder="MM/DD/YYYY" inputMode="numeric" maxLength={10} value={text} aria-label={label}
-          onChange={(e) => { const d = e.target.value.replace(/\D/g, '').slice(0, 8); setText([d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('/')); }}
+          onChange={(e) => {
+            const d = e.target.value.replace(/\D/g, '').slice(0, 8);
+            const t = [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('/');
+            setText(t);
+            // Store the date as soon as it is complete, so pressing Enter (no blur) still submits it.
+            const v = d.length === 8 ? mdyToIso(t) : '';
+            if (v && !(min && v < min)) { setIso(v); setErr(''); onChange?.(v); }
+            else if (!d.length) { setIso(''); onChange?.(''); }
+          }}
           onBlur={() => {
             if (!text) { set(''); return; }
             const v = mdyToIso(text);
@@ -310,7 +320,10 @@ export function UploadRow({ name, label, existing, dates, auditPeriod, locked, m
     </>
   );
   const hasDates = auditPeriod || (dates && !locked);
-  const state = locked ? (existing ? <span className="doc-state ok">Uploaded</span> : null) : (hasFile || files.length) ? <span className="doc-state ok">Uploaded</span> : <span className="doc-state">Not uploaded</span>;
+  // "Uploaded" only for a file already saved; a newly chosen file is "Selected" until the form is saved.
+  const state = locked ? (existing ? <span className="doc-state ok">Uploaded</span> : null)
+    : files.length ? <span className="doc-state ok" title="Saved when you save the form">Selected</span>
+    : hasFile ? <span className="doc-state ok">Uploaded</span> : <span className="doc-state">Not uploaded</span>;
   if (!label) return <div className="field doc-field doc-bare">{fileControl}{hasDates ? datesEl : null}{note ? <span className="person-sub">{note}</span> : null}</div>;
   return (
     <div className={`field doc-field ${hasDates ? 'has-dates' : ''}`}>

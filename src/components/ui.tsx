@@ -33,8 +33,8 @@ export const Diff = ({ children }: { children: ReactNode }) => <span className="
 
 export function FileChip({ name, size }: { name: string; size?: string }) {
   return (
-    <span className="file-chip">
-      <span className="file-ext">{name.split('.').pop()?.toUpperCase()}</span>{name}
+    <span className="file-chip" title={name}>
+      <span className="file-ext">{name.split('.').pop()?.toUpperCase()}</span><span className="file-name">{name}</span>
       {size ? <span className="person-sub inline">{size}</span> : null}
     </span>
   );

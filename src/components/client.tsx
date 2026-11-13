@@ -87,6 +87,10 @@ export function Filters({ filters }: { filters: { label: string; param: string; 
 // Each pop-up is part of the URL (?m=…), so Back closes it. Closing goes back to the same page without ?m.
 export function Modal({ title, description, closeHref, children, wide }: { title: ReactNode; description?: ReactNode; closeHref: string; children: ReactNode; wide?: boolean }) {
   const router = useRouter();
+  const params = useSearchParams();
+  // A different pop-up (other record or action) gets a fresh form: otherwise React reuses the previous form's
+  // uncontrolled fields, and saving "Edit B" could write A's values (e.g. A's "Not mapped" client) onto B.
+  const bodyKey = useMemo(() => { const p = new URLSearchParams(params.toString()); p.delete('flash'); return p.toString(); }, [params]);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => router.push(closeHref, { scroll: false }), [router, closeHref]);
   useEffect(() => {
@@ -106,7 +110,7 @@ export function Modal({ title, description, closeHref, children, wide }: { title
           </div>
           <button type="button" className="modal-close" aria-label="Close" onClick={close}>×</button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div className="modal-body" key={bodyKey}>{children}</div>
       </div>
     </div>
   );
