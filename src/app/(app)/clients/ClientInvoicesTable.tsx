@@ -1,5 +1,6 @@
 'use client';
-import { useActionState, useState, type ReactNode } from 'react';
+import { useFormAction } from '@/components/useFormAction';
+import { useState, type ReactNode } from 'react';
 import { DataTable } from '@/components/client';
 import { FileChip } from '@/components/ui';
 import { fileProblem } from '@/components/fields';
@@ -12,7 +13,7 @@ export type CiRow = { personId: string; cells: ReactNode[]; uploaded: boolean; f
 export function ClientInvoicesTable({ title, chip, headers, rows, period, back, editable }: {
   title: string; chip: string; headers: string[]; rows: CiRow[]; period: string; back: string; editable: boolean;
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(saveClientInvoicesAction, undefined);
+  const [state, action, pending] = useFormAction(saveClientInvoicesAction);
   const missing = rows.filter((r) => !r.uploaded).length;
   // Columns: person [, client], Client Invoice, Client Billable Hours, Status
   const built = rows.map((r) => {
@@ -27,7 +28,7 @@ export function ClientInvoicesTable({ title, chip, headers, rows, period, back, 
     ];
   });
   return (
-    <form action={action}>
+    <form onSubmit={action}>
       <input type="hidden" name="period" value={period} />
       <input type="hidden" name="back" value={back} />
       {state?.error ? <div className="alert alert-danger form-error-banner"><div><div className="alert-title">{state.error}</div></div></div> : null}

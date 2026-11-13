@@ -1,5 +1,6 @@
 'use client';
-import { useActionState, useId } from 'react';
+import { useFormAction } from '@/components/useFormAction';
+import { useId } from 'react';
 import { DateField, ExtraDocs, FormFooter, PaymentTerm, Section, Select, Text, UploadRow, WorkLocation } from './fields';
 import { PasswordBox } from './actions-client';
 import { createPersonAction, updatePersonAction } from '@/lib/actions/people';
@@ -25,7 +26,7 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
   clients: { value: string; label: string }[]; terms: string[]; amOptions?: { value: string; label: string }[]; canEditAm?: boolean; amName?: string;
   docs?: EditDoc[]; signIn?: { accountId: string; email: string; name: string; badge: string; text: string } | null; back: string; cancelHref: string;
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(mode === 'add' ? createPersonAction : updatePersonAction, undefined);
+  const [state, action, pending] = useFormAction(mode === 'add' ? createPersonAction : updatePersonAction);
   const fe = state?.fieldErrors;
   const formId = useId();
   const consultant = type === 'consultant';
@@ -33,7 +34,7 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
   const clientOptions = consultant ? [{ value: '', label: 'Not mapped' }, ...clients] : [{ value: '', label: 'Select client…' }, ...clients];
   return (
     <div className="form-card">
-      <form id={formId} action={action}>
+      <form id={formId} onSubmit={action}>
         <input type="hidden" name="type" value={type} />
         <input type="hidden" name="back" value={back} />
         {data.id ? <input type="hidden" name="id" value={data.id} /> : null}

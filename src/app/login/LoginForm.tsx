@@ -1,5 +1,6 @@
 'use client';
-import { useActionState, useState } from 'react';
+import { useFormAction } from '@/components/useFormAction';
+import { useState } from 'react';
 import { signIn, type FormState } from '@/lib/actions/auth';
 
 const DEMO = [
@@ -14,7 +15,7 @@ const DEMO = [
 ];
 
 export function LoginForm({ notice, demo }: { notice?: string; demo: boolean }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(signIn, undefined);
+  const [state, action, pending] = useFormAction(signIn);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const error = state?.error || notice;
@@ -22,7 +23,7 @@ export function LoginForm({ notice, demo }: { notice?: string; demo: boolean }) 
     <div className="login-pane">
       <h2>Vendor Management System</h2>
       <p className="login-sub">Sign in with your email and password. Vendors, consultants and W-2 / 1099 resources: use the username and temporary password from your welcome email the first time. Your password must be changed every 30 days.</p>
-      <form className="login-form" action={action}>
+      <form className="login-form" onSubmit={action}>
         <label htmlFor="loginEmail">Email (username)</label>
         <input type="email" id="loginEmail" name="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
         <label htmlFor="loginPassword">Password</label>

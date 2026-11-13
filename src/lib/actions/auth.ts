@@ -1,5 +1,6 @@
 'use server';
 import { redirect } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 import { authClient } from '../supabase/server';
 import { db } from '../supabase/admin';
 import { audit } from '../audit';
@@ -46,9 +47,10 @@ export async function setNewPassword(_: FormState, form: FormData): Promise<Form
   const confirm = String(form.get('confirm') || '');
   if (pw.length < 8) return { error: 'Use at least 8 characters.' };
   if (pw !== confirm) return { error: 'The two passwords do not match.' };
-  const supabase = await authClient();
-  const { error } = await supabase.auth.updateUser({ password: pw });
-  if (error) return { error: error.message.includes('different') ? 'Choose a password different from the temporary one.' : error.message };
+  const checker = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
+  if (!(await checker.auth.signInWithPassword({ email: s.account.email, password: pw })).error) return { error: 'Choose a password different from the temporary one.' };
+  const { error } = await db().auth.admin.updateUserById(s.account.id, { password: pw });
+  if (error) return { error: error.message };
   const today = todayISO();
   await db().from('user_accounts').update({
     must_change_password: false,
@@ -73,10 +75,12 @@ export async function changePassword(_: FormState, form: FormData): Promise<Form
   if (pw !== confirm) fieldErrors.confirm = 'The two passwords do not match.';
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
-  const supabase = await authClient();
-  const check = await supabase.auth.signInWithPassword({ email: s.account.email, password: current });
+  // Check the current password with a separate client so the signed-in session is never touched.
+  const checker = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
+  const check = await checker.auth.signInWithPassword({ email: s.account.email, password: current });
   if (check.error) return { fieldErrors: { current: 'Current password is incorrect.' } };
-  const { error } = await supabase.auth.updateUser({ password: pw });
+  await checker.auth.signOut();
+  const { error } = await db().auth.admin.updateUserById(s.account.id, { password: pw });
   if (error) return { error: error.message };
   const expires = addDays(todayISO(), PASSWORD_DAYS);
   await db().from('user_accounts').update({

@@ -1,5 +1,6 @@
 'use client';
-import { useActionState, useId } from 'react';
+import { useFormAction } from '@/components/useFormAction';
+import { useId } from 'react';
 import { ExtraDocs, FormFooter, PaymentTerm, Section, Select, Text, UploadRow } from './fields';
 import { PasswordBox } from './actions-client';
 import { createVendorAction, updateVendorAction } from '@/lib/actions/vendors';
@@ -19,13 +20,13 @@ export function VendorForm({ mode, data, terms, amOptions, canPickAm, amName, si
   mode: 'add' | 'edit'; data: VendorFormData; terms: string[]; amOptions: { value: string; label: string }[]; canPickAm: boolean; amName: string;
   signIn?: { accountId: string; email: string; name: string; badge: string; text: string } | null; cancelHref: string;
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(mode === 'add' ? createVendorAction : updateVendorAction, undefined);
+  const [state, action, pending] = useFormAction(mode === 'add' ? createVendorAction : updateVendorAction);
   const fe = state?.fieldErrors;
   const formId = useId();
   const add = mode === 'add';
   return (
     <div className="form-card">
-      <form id={formId} action={action}>
+      <form id={formId} onSubmit={action}>
         {data.id ? <input type="hidden" name="id" value={data.id} /> : null}
         <Section title={add ? 'Vendor details' : 'Company'}>
           <Text name="name" label="Name" value={data.name} required={add} readOnly={!add} lock="Admin-managed" errors={fe} />

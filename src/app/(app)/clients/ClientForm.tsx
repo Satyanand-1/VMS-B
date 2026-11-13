@@ -1,5 +1,5 @@
 'use client';
-import { useActionState } from 'react';
+import { useFormAction } from '@/components/useFormAction';
 import { ExtraDocs, FormFooter, MultiSelect, Section, Select, Text, UploadRow, DateField } from '@/components/fields';
 import { createClientAction, updateClientAction } from '@/lib/actions/clients';
 import type { FormState } from '@/lib/actions/auth';
@@ -18,10 +18,10 @@ const ZONES = [
 export function ClientForm({ mode, data, amOptions, canEditAms, amNames, cancelHref }: {
   mode: 'add' | 'edit'; data: ClientFormData; amOptions: { value: string; label: string; hint?: string }[]; canEditAms: boolean; amNames: string; cancelHref: string;
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(mode === 'add' ? createClientAction : updateClientAction, undefined);
+  const [state, action, pending] = useFormAction(mode === 'add' ? createClientAction : updateClientAction);
   const fe = state?.fieldErrors;
   return (
-    <form className="form-card" action={action}>
+    <form className="form-card" onSubmit={action}>
       {data.id ? <input type="hidden" name="id" value={data.id} /> : null}
       <Section title="Client details">
         <Text name="name" label="Client name" value={data.name} required placeholder="Enter client name" errors={fe} />
