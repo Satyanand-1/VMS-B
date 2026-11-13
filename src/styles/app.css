@@ -1,0 +1,36 @@
+/* Small additions for the built app. The prototype used <button> for menu items, tabs, cards and links;
+   the app uses real links (<a>) for navigation, so the same look is applied to them here. */
+.left-nav a {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: rgba(255,255,255,0.88);
+  text-align: left;
+  padding: 11px 12px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  font-weight: 600;
+  text-decoration: none;
+  display: block;
+}
+.left-nav a:hover { background: rgba(255,255,255,0.05); }
+.left-nav a.active {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.16);
+  color: #fff;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.left-nav .nav-group-toggle { width: 100%; }
+@media (min-width: 981px) and (max-width: 1600px) { .left-nav a { padding: 9px 12px; } }
+@media (min-width: 981px) and (max-width: 1300px), (min-width: 981px) and (max-height: 760px) { .left-nav a { padding: 8px 10px; } }
+
+a.link-btn, a.btn, a.tab, a.profile-menu-item, a.crumb-link, a.kpi-card, a.bar-row, a.btn-alert { text-decoration: none; }
+a.kpi-card, a.bar-row { color: inherit; display: block; text-align: left; }
+a.btn, a.link-btn { display: inline-flex; align-items: center; justify-content: center; }
+a.tab { display: inline-block; }
+a.profile-menu-item { display: block; }
+form > button.profile-menu-item { width: 100%; }
+
+.field-error { color: var(--danger); font-size: 0.8rem; margin-top: 4px; display: block; }
+.form-error-banner { margin: 0 0 12px; }
+.modal.modal-wide { width: min(1100px, 100%); }
