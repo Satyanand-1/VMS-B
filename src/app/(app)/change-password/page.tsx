@@ -1,12 +1,14 @@
 import { Page } from '@/components/page';
-import { requireSession, passwordInfo } from '@/lib/session';
+import { requireSession, passwordInfo, isExternal } from '@/lib/session';
 import { ChangePasswordForm } from './ChangePasswordForm';
 
-// AUTH-5: vendor, consultant, W-2 and 1099 users change their password (current one required).
+// AUTH-5: every signed-in user changes their own password (current one required):
+// Super Admin, account managers, vendors and W-2 / 1099 resources.
 export default async function ChangePasswordPage() {
-  const s = await requireSession(['vendor', 'w2', 'w9']);
+  const s = await requireSession(['superadmin', 'accountmanager', 'vendor', 'w2', 'w9']);
   const p = passwordInfo(s.account);
-  const status = p.expired ? `Expired on ${p.expires}` : `Expires on ${p.expires} (${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'} left)`;
+  const status = !isExternal(s.account.role) ? `Last changed ${p.set}`
+    : p.expired ? `Expired on ${p.expires}` : `Expires on ${p.expires} (${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'} left)`;
   return (
     <Page s={s} title="Change Password">
       <ChangePasswordForm hint={status} />

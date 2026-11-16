@@ -108,14 +108,16 @@ export async function changePassword(_: FormState, form: FormData): Promise<Form
   await checker.auth.signOut({ scope: 'local' }); // only this check's session, never the user's browser session
   const { error } = await db().auth.admin.updateUserById(s.account.id, { password: pw });
   if (error) return { error: error.message };
-  const expires = addDays(todayISO(), PASSWORD_DAYS);
+  // Vendors and resources: a fresh 30-day period. Account managers and the Super Admin: passwords do not expire.
+  const external = isExternal(s.account.role);
+  const expires = external ? `${addDays(todayISO(), PASSWORD_DAYS)}T23:59:59Z` : null;
   await db().from('user_accounts').update({
-    password_set_at: new Date().toISOString(), password_expires_at: `${expires}T23:59:59Z`, must_change_password: false
+    password_set_at: new Date().toISOString(), password_expires_at: expires, must_change_password: false
   }).eq('id', s.account.id);
   await audit(s, 'update', 'password', s.account.id, 'changed password');
   await renewSession(s.account.email, pw);
-  const p = passwordInfo({ ...s.account, password_set_at: new Date().toISOString(), password_expires_at: `${expires}T23:59:59Z`, must_change_password: false });
-  redirect(`/dashboard?flash=${encodeURIComponent(`Password changed|Your new password is valid until ${p.expires}.`)}`);
+  const p = passwordInfo({ ...s.account, password_set_at: new Date().toISOString(), password_expires_at: expires, must_change_password: false });
+  redirect(`/dashboard?flash=${encodeURIComponent(external ? `Password changed|Your new password is valid until ${p.expires}.` : 'Password changed|Use your new password the next time you sign in.')}`);
 }
 
 // After a password change Supabase may end the existing session; sign in again with the new password
