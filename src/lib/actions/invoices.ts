@@ -63,6 +63,7 @@ export async function reviewClientInvoiceAction(_: FormState, raw: FormData): Pr
   const person = must(await db().from('people').select('id,full_name,client_id,vendor_id,start_date,end_date').eq('id', personId).single(), 'person') as Person;
   if (!person.client_id || !canSeeClient(s, person.client_id)) return { error: 'You can upload client invoices only for your own clients.' };
   if (!monthOptions().includes(period)) return { error: 'Choose one of the offered months.' };
+  if (person.start_date && person.start_date.slice(0, 7) > period.slice(0, 7)) return { error: `${person.full_name} starts on ${fmtDate(person.start_date)}; no client invoice before that month.` };
   const f = form.get('file');
   const file = f instanceof File && f.size > 0 ? f : null;
   const hours = Number(form.get('hours'));

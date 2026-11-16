@@ -109,7 +109,9 @@ async function reviewModal(s: Session, personId: string, period: string, closeHr
             <div className="review-doc-title">Client invoice{canEditCi ? <EditClientInvoice ciId={ci!.id} hours={Number(ci!.hours)} back={closeHref} />
               : ci && sub?.status === 'approved' ? <span className="person-sub inline">Approved: cancel the approval below to edit it.</span> : null}</div>
             {ci ? <DocPreview fileKey={`ci-${ci.id}`} name={ci.file_name} />
-              : <><div className="review-missing">The client invoice is not uploaded yet. Upload it here.</div><ReviewClientInvoice personId={p.id} period={period} /></>}
+              : p.start_date && p.start_date.slice(0, 7) > period.slice(0, 7)
+                ? <div className="review-missing">{p.full_name} starts on {fmtDate(p.start_date)}, so there is no client invoice for {monthLong(period)}.</div>
+                : <><div className="review-missing">The client invoice is not uploaded yet. Upload it here.</div><ReviewClientInvoice personId={p.id} period={period} /></>}
           </div>
           <div className="review-doc">
             <div className="review-doc-title">{docLabel}</div>

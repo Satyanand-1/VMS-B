@@ -16,7 +16,7 @@ function clientDetailErrors(f: { address: string | null; currency: string; time_
   if (!CURRENCIES.includes(f.currency)) fe.currency = 'Choose the currency.';
   if (!ZONES.includes(f.time_zone)) fe.time_zone = 'Choose the time zone.';
 }
-import { monthLong } from '../format';
+import { fmtDate, monthLong } from '../format';
 import { monthOptions } from '../data';
 import { docDateErrors } from '../validate';
 import { amOfPerson, notifyStaff, notifyUsers } from '../domain/notify';
@@ -141,6 +141,7 @@ export async function saveClientInvoicesAction(_: FormState, raw: FormData): Pro
     const p = (await db().from('people').select('id,full_name,client_id,vendor_id,start_date,end_date').eq('id', pid).maybeSingle()).data as { id: string; full_name: string; client_id: string | null; start_date: string | null; end_date: string | null } | null;
     if (!p || !p.client_id || !canSeeClient(s, p.client_id)) { fe[pid] = 'Not in your scope.'; continue; }
     if (!monthOptions().includes(period)) { fe[pid] = 'Choose one of the offered months.'; continue; }
+    if (p.start_date && p.start_date.slice(0, 7) > period.slice(0, 7)) { fe[pid] = `${p.full_name} starts on ${fmtDate(p.start_date)}; no client invoice before that month.`; continue; }
     const hours = Number(hoursRaw);
     if (!file) { fe[pid] = 'Upload the client invoice.'; continue; }
     const problem = await checkFile(file);

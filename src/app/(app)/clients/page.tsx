@@ -26,23 +26,34 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   const all = clientId === 'all';
   const m = await maps();
 
-  // Everyone assigned to the client(s) is listed (consultants mapped to a client, W-2 and 1099 resources), and a client
-  // invoice can be uploaded for any of the offered months. When the month is outside the person's assignment dates the
-  // dates are shown as a note only (dates are often entered or extended later), never as a block.
+  // Everyone assigned to the client(s) is listed (consultants mapped to a client, W-2 and 1099 resources).
+  // No client invoice can be uploaded for a month before the person's start date: that row shows "Not Due · Starts …".
+  // After the end date the month is still open, with a note under the name.
   const people = (await peopleInScope(s)).filter((p) => p.client_id && (all ? clients.some((c) => c.id === p.client_id) : p.client_id === clientId));
-  const dateNote = (p: Person) => (p.start_date && p.start_date.slice(0, 7) > period.slice(0, 7) ? `Assignment starts ${fmtDate(p.start_date)}`
-    : p.end_date && p.end_date.slice(0, 7) < period.slice(0, 7) ? `Assignment ended ${fmtDate(p.end_date)}` : null);
+  const beforeStart = (p: Person) => !!p.start_date && p.start_date.slice(0, 7) > period.slice(0, 7);
+  const endNote = (p: Person) => (p.end_date && p.end_date.slice(0, 7) < period.slice(0, 7) ? `Assignment ended ${fmtDate(p.end_date)}` : null);
   const cis = await clientInvoicesFor(people.map((p) => p.id), [period]);
   const ciOf = (pid: string) => cis.find((c) => c.person_id === pid) || null;
   // The Status filter (All / Uploaded / Not uploaded) applies to the list and to the counts on the tabs.
-  const matchesStatus = (p: Person) => status === 'All' || (status === 'Uploaded') === !!ciOf(p.id);
+  // "Not uploaded" lists only people whose client invoice can be uploaded for the month; people not started yet appear under All.
+  const matchesStatus = (p: Person) => status === 'All' || (status === 'Uploaded' ? !!ciOf(p.id) : !ciOf(p.id) && !beforeStart(p));
   const shown = people.filter((p) => p.type === TAB_TYPES[tab] && matchesStatus(p));
-  const missing = shown.filter((p) => !ciOf(p.id)).length;
+  const missing = shown.filter((p) => !ciOf(p.id) && !beforeStart(p)).length;
 
   const rows: CiRow[] = shown.map((p) => {
     const ci = ciOf(p.id);
-    const note = dateNote(p);
+    const notDue = !ci && beforeStart(p);
+    const note = endNote(p);
     const sub = p.vendor_id ? m.vendor[p.vendor_id]?.name : `${p.type === 'w2' ? 'W-2' : '1099'} resource`;
+    if (notDue) return {
+      personId: p.id, uploaded: false, search: p.full_name, locked: true,
+      cells: [
+        <PersonCell key="p" name={p.full_name} sub={sub} />,
+        ...(all ? [m.client[p.client_id!]?.name] : []),
+        <span key="s"><Badge text="Not Due" /><span className="person-sub">Starts {fmtDate(p.start_date)}</span></span>
+      ],
+      fileCell: <span className="person-sub inline">No client invoice before the start date</span>, hours: '—'
+    };
     return {
       personId: p.id, uploaded: !!ci, search: p.full_name,
       cells: [
