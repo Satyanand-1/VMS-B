@@ -21,10 +21,6 @@ const SORTS = [
   { value: 'name_desc', label: 'Name (Z–A)' },
   { value: 'client', label: 'Client (A–Z)' },
   { value: 'vendor', label: 'Vendor (A–Z)' },
-  { value: 'status', label: 'Status' },
-  { value: 'client_hours', label: 'Client hours (highest first)' },
-  { value: 'sub_hours', label: 'Vendor / resource hours (highest first)' },
-  { value: 'diff', label: 'Hours difference (largest first)' }
 ];
 
 export default async function InvoiceManagementPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
@@ -60,16 +56,11 @@ export default async function InvoiceManagementPage({ searchParams }: { searchPa
   const activity = (r: (typeof all)[number]) => [r.sub?.submitted_at, (r.ci as { uploaded_at?: string } | null)?.uploaded_at].filter(Boolean).sort().pop() || '';
   const by = (a: string | number, b: string | number) => (a < b ? -1 : a > b ? 1 : 0);
   const name = (r: (typeof all)[number]) => r.p.full_name.toLowerCase();
-  const diff = (r: (typeof all)[number]) => (r.ci && r.sub ? Math.abs(Number(r.ci.hours) - Number(r.sub.hours)) : -1);
   const cmp: Record<string, (a: (typeof all)[number], b: (typeof all)[number]) => number> = {
     name: (a, b) => by(name(a), name(b)),
     name_desc: (a, b) => by(name(b), name(a)),
     client: (a, b) => by((m.client[a.p.client_id!]?.name || '').toLowerCase(), (m.client[b.p.client_id!]?.name || '').toLowerCase()),
     vendor: (a, b) => by((a.p.vendor_id ? m.vendor[a.p.vendor_id]?.name : '') || '', (b.p.vendor_id ? m.vendor[b.p.vendor_id]?.name : '') || ''),
-    status: (a, b) => by(a.st, b.st),
-    client_hours: (a, b) => Number(b.ci?.hours ?? -1) - Number(a.ci?.hours ?? -1),
-    sub_hours: (a, b) => Number(b.sub?.hours ?? -1) - Number(a.sub?.hours ?? -1),
-    diff: (a, b) => diff(b) - diff(a),
     latest: (a, b) => by(activity(b), activity(a)),
     oldest: (a, b) => (!activity(a) ? 1 : !activity(b) ? -1 : by(activity(a), activity(b)))
   };

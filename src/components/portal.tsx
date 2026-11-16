@@ -17,9 +17,7 @@ const SORTS: { value: string; label: string; vendorOnly?: boolean }[] = [
   { value: 'period_asc', label: 'Billable period (oldest first)' },
   { value: 'consultant', label: 'Consultant (A–Z)', vendorOnly: true },
   { value: 'client', label: 'Client (A–Z)', vendorOnly: true },
-  { value: 'status', label: 'Status' },
-  { value: 'amount_desc', label: 'Amount (highest first)' },
-  { value: 'hours_desc', label: 'Hours (highest first)' }
+  { value: 'amount_desc', label: 'Amount (highest first)' }
 ];
 
 export async function SubmissionsPortal({ s, sp, path }: { s: Session; sp: Record<string, string>; path: string }) {
@@ -46,9 +44,7 @@ export async function SubmissionsPortal({ s, sp, path }: { s: Session; sp: Recor
     period_asc: (a, b) => by(a.period, b.period),
     consultant: (a, b) => by((pName[a.person_id]?.full_name || '').toLowerCase(), (pName[b.person_id]?.full_name || '').toLowerCase()),
     client: (a, b) => by((m.client[a.client_id]?.name || '').toLowerCase(), (m.client[b.client_id]?.name || '').toLowerCase()),
-    status: (a, b) => by(shown(a), shown(b)),
-    amount_desc: (a, b) => Number(b.amount || 0) - Number(a.amount || 0),
-    hours_desc: (a, b) => Number(b.hours) - Number(a.hours)
+    amount_desc: (a, b) => Number(b.amount || 0) - Number(a.amount || 0)
   };
   const filtered = subs.filter((x) => tab === 0 || shown(x) === TABS[tab])
     .sort((a, b) => cmp[sort](a, b) || by(b.period, a.period) || by(b.submitted_at || '', a.submitted_at || ''));
