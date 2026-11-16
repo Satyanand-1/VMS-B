@@ -1,5 +1,6 @@
 'use client';
 import { useFormAction } from '@/components/useFormAction';
+import { PasswordInput } from '@/components/PasswordInput';
 import { setNewPassword, signOut } from '@/lib/actions/auth';
 
 export function SetPasswordForm({ email }: { email: string }) {
@@ -11,9 +12,9 @@ export function SetPasswordForm({ email }: { email: string }) {
       <p className="login-sub">You signed in with a temporary password emailed to <b>{email}</b>. Choose a new password to continue. It will be valid for 30 days.</p>
       <form className="login-form" onSubmit={action}>
         <label htmlFor="newPassword">New password</label>
-        <input type="password" id="newPassword" name="password" autoComplete="new-password" placeholder="8+ characters, with a letter and a number" />
+        <PasswordInput id="newPassword" name="password" autoComplete="new-password" placeholder="8+ characters, with a letter and a number" />
         <label htmlFor="confirmPassword">Confirm new password</label>
-        <input type="password" id="confirmPassword" name="confirm" autoComplete="new-password" />
+        <PasswordInput id="confirmPassword" name="confirm" autoComplete="new-password" />
         {state?.error ? <div className="login-error">{state.error}</div> : null}
         <button className="btn btn-primary login-button" type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save & Sign In'}</button>
       </form>

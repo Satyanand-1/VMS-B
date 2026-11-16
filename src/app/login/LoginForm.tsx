@@ -2,6 +2,7 @@
 import { useFormAction } from '@/components/useFormAction';
 import { useState } from 'react';
 import { signIn } from '@/lib/actions/auth';
+import { PasswordInput } from '@/components/PasswordInput';
 
 const DEMO = [
   ['a.krishnan@arkhyatech.com', 'Super Admin · Arun Krishnan'],
@@ -27,7 +28,7 @@ export function LoginForm({ notice, ok, demo }: { notice?: string; ok?: string; 
         <label htmlFor="loginEmail">Email (username)</label>
         <input type="email" id="loginEmail" name="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
         <label htmlFor="loginPassword">Password</label>
-        <input type="password" id="loginPassword" name="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <PasswordInput id="loginPassword" name="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         {ok && !state?.error ? <div className="login-notice">{ok}</div> : null}
         {error ? <div className="login-error">{error}</div> : null}
         <button className="btn btn-primary login-button" type="submit" disabled={pending}>{pending ? 'Signing in…' : 'Sign In'}</button>

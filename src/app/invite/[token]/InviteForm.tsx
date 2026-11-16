@@ -1,5 +1,6 @@
 'use client';
 import { useFormAction } from '@/components/useFormAction';
+import { PasswordInput } from '@/components/PasswordInput';
 import { acceptInviteAction } from '@/lib/actions/admin';
 
 export function InviteForm({ token }: { token: string }) {
@@ -11,9 +12,9 @@ export function InviteForm({ token }: { token: string }) {
       <form className="login-form" onSubmit={action}>
         <input type="hidden" name="token" value={token} />
         <label htmlFor="newPassword">New password</label>
-        <input type="password" id="newPassword" name="password" autoComplete="new-password" placeholder="8+ characters, with a letter and a number" />
+        <PasswordInput id="newPassword" name="password" autoComplete="new-password" placeholder="8+ characters, with a letter and a number" />
         <label htmlFor="confirmPassword">Confirm new password</label>
-        <input type="password" id="confirmPassword" name="confirm" autoComplete="new-password" />
+        <PasswordInput id="confirmPassword" name="confirm" autoComplete="new-password" />
         {state?.error ? <div className="login-error">{state.error}</div> : null}
         <button className="btn btn-primary login-button" type="submit" disabled={pending}>{pending ? 'Saving…' : 'Set Password'}</button>
       </form>
