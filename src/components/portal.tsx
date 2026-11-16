@@ -31,11 +31,11 @@ export async function SubmissionsPortal({ s, sp, path }: { s: Session; sp: Recor
       {x.status === 'rejected' ? <TextLink href={`${path}?m=resubmit&id=${x.id}`}>Resubmit</TextLink> : null}
     </div>
   );
-  const headers = vendor ? ['Invoice #', 'Consultant', 'Client', 'Hours', 'Amount', 'Submitted', 'Status', 'Actions']
+  const headers = vendor ? ['Invoice #', 'Consultant', 'Client', 'Billable Period', 'Hours', 'Amount', 'Submitted', 'Status', 'Actions']
     : w2 ? ['Period', 'Hours', 'Timesheet', 'Submitted', 'Status', 'Actions'] : ['Invoice #', 'Period', 'Hours', 'Amount', 'Status', 'Actions'];
   const submitted = (x: Submission) => `${fmtDate(x.submitted_at)}${x.version_no > 1 ? ` (v${x.version_no})` : ''}`;
   const rows = filtered.map((x) => vendor
-    ? [<span key="r" className="mono">{x.ref}</span>, <PersonCell key="p" name={pName[x.person_id]?.full_name} />, m.client[x.client_id]?.name, String(Number(x.hours)), usd(x.amount), submitted(x), <Badge key="s" text={shown(x)} />, actions(x)]
+    ? [<span key="r" className="mono">{x.ref}</span>, <PersonCell key="p" name={pName[x.person_id]?.full_name} />, m.client[x.client_id]?.name, monthLong(x.period), String(Number(x.hours)), usd(x.amount), submitted(x), <Badge key="s" text={shown(x)} />, actions(x)]
     : w2 ? [monthLong(x.period), String(Number(x.hours)), x.timesheet_name ? <FileChip key="f" name={x.timesheet_name} /> : <Muted>Not uploaded</Muted>, submitted(x), <Badge key="s" text={shown(x)} />, actions(x)]
     : [<span key="r" className="mono">{x.ref}</span>, monthShort(x.period), String(Number(x.hours)), usd(x.amount), <Badge key="s" text={shown(x)} />, actions(x)]);
 
