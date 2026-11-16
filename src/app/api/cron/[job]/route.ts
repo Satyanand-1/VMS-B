@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { timingSafeEqual } from 'crypto';
+import { BUCKET } from '@/lib/files';
 import { db } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { addDays, fmtDate, todayISO } from '@/lib/format';
@@ -8,8 +10,17 @@ import { audit } from '@/lib/audit';
 //   document-expiry  — DOC-3: email the owner and the account manager 30 days before a document expires
 //   password-expiry  — AUTH-5: warn external users 5 days before their password expires
 //   audit-retention  — AUD-2: delete audit entries older than 120 days (invoices and documents are never deleted)
+//   staging-cleanup  — delete files sent to staging/ by forms that were never saved (older than 24 hours)
+function authorized(req: NextRequest) {
+  const secret = process.env.CRON_SECRET || '';
+  if (secret.length < 16) return false; // not configured (or too short to be safe): the jobs stay off
+  const given = Buffer.from(req.headers.get('authorization') || '');
+  const want = Buffer.from(`Bearer ${secret}`);
+  return given.length === want.length && timingSafeEqual(given, want); // constant-time comparison
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ job: string }> }) {
-  if (!process.env.CRON_SECRET || req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) return new NextResponse('Unauthorized', { status: 401 });
+  if (!authorized(req)) return new NextResponse('Unauthorized', { status: 401 });
   const { job } = await params;
   const today = todayISO();
   let done = 0;
@@ -44,6 +55,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
     const { count } = await db().from('audit_log').delete({ count: 'exact' }).lt('at', cutoff);
     done = count || 0;
     await audit(null, 'delete', 'audit_log', null, `retention job removed ${done} audit entries older than 120 days`);
+  } else if (job === 'staging-cleanup') {
+    const cutoff = Date.now() - 24 * 3600000;
+    const { data } = await db().storage.from(BUCKET).list('staging', { limit: 1000, sortBy: { column: 'created_at', order: 'asc' } });
+    const old = (data || []).filter((f) => f.created_at && new Date(f.created_at).getTime() < cutoff).map((f) => `staging/${f.name}`);
+    if (old.length) await db().storage.from(BUCKET).remove(old);
+    done = old.length;
   } else {
     return new NextResponse('Unknown job', { status: 404 });
   }

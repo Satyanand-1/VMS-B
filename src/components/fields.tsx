@@ -413,7 +413,7 @@ export function PasswordChoice({ errors, compact }: { errors?: Errors; compact?:
       <input type="hidden" name="pw_mode" value={mode} />
       {mode === 'own' ? (
         <div className="custom-term-row">
-          <input name="pw_value" type={show ? 'text' : 'password'} autoComplete="new-password" placeholder="At least 8 characters" aria-label="Password" />
+          <input name="pw_value" type={show ? 'text' : 'password'} autoComplete="new-password" placeholder="8+ characters, with a letter and a number" aria-label="Password" />
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShow((v) => !v)}>{show ? 'Hide' : 'Show'}</button>
         </div>
       ) : <span className="person-sub">A random 14-character password is created.</span>}

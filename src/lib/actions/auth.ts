@@ -1,4 +1,5 @@
 'use server';
+import { passwordProblem } from '../password';
 import { isValidEmail } from '../email-format';
 import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
@@ -9,6 +10,8 @@ import { loadSession, passwordInfo, isExternal, PASSWORD_DAYS, type Account } fr
 import { addDays, todayISO } from '../format';
 
 export type FormState = { error?: string; fieldErrors?: Record<string, string>; ok?: string } | undefined;
+const MAX_FAILS = 5;
+const LOCK_MINUTES = 15;
 
 
 // AUTH-1, AUTH-2, AUTH-3, AUTH-7
@@ -17,21 +20,34 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
   const password = String(form.get('password') || '');
   if (!isValidEmail(email)) return { error: 'Enter a valid email address.' };
   if (!password) return { error: 'Enter your password.' };
+  if (password.length > 200) return { error: 'Email or password is incorrect.' };
+
+  // Brute-force protection: after 5 wrong passwords for an email within 15 minutes, that email is locked for 15 minutes.
+  const since = new Date(Date.now() - LOCK_MINUTES * 60000).toISOString();
+  const { count: fails } = await db().from('audit_log').select('id', { count: 'exact', head: true })
+    .eq('action', 'login_failed').eq('entity_id', email).gte('at', since);
+  if ((fails || 0) >= MAX_FAILS) return { error: `Too many unsuccessful sign-ins. For your security this account is locked for ${LOCK_MINUTES} minutes. Try again later or ask your account manager to send a new password.` };
 
   const { data: acc } = await db().from('user_accounts').select('*').eq('email', email).maybeSingle();
   const account = acc as Account | null;
-  if (account?.status === 'inactive') return { error: 'This account is inactive. Contact your account manager to restore access.' };
+  let consultant = false;
   if (account?.person_id) {
     const p = (await db().from('people').select('type').eq('id', account.person_id).maybeSingle()).data as { type: string } | null;
-    if (p?.type === 'consultant') return { error: 'Email or password is incorrect.' }; // vendor consultants have no login
+    consultant = p?.type === 'consultant'; // vendor consultants have no login
   }
-  if (account?.status === 'invited') return { error: 'Your account is not active yet. Use the invite link in your email to set a password.' };
 
+  // The password is checked first, so the messages below never reveal whether an email has an account.
   const supabase = await authClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error || !account) {
+  if (error || !account || consultant) {
     await supabase.auth.signOut();
+    await db().from('audit_log').insert({ action: 'login_failed', entity: 'session', entity_id: email, summary: 'unsuccessful sign-in', actor_name: email });
     return { error: 'Email or password is incorrect.' };
+  }
+  if (account.status === 'inactive' || account.status === 'invited') {
+    await supabase.auth.signOut();
+    return { error: account.status === 'inactive' ? 'This account is inactive. Contact your account manager to restore access.'
+      : 'Your account is not active yet. Use the invite link in your email to set a password.' };
   }
   const p = passwordInfo(account);
   if (!account.must_change_password && p.expired) {
@@ -49,7 +65,8 @@ export async function setNewPassword(_: FormState, form: FormData): Promise<Form
   if (!s) redirect('/login');
   const pw = String(form.get('password') || '');
   const confirm = String(form.get('confirm') || '');
-  if (pw.length < 8) return { error: 'Use at least 8 characters.' };
+  const weak = passwordProblem(pw);
+  if (weak) return { error: weak };
   if (pw !== confirm) return { error: 'The two passwords do not match.' };
   const checker = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
   if (!(await checker.auth.signInWithPassword({ email: s.account.email, password: pw })).error) return { error: 'Choose a password different from the temporary one.' };
@@ -75,7 +92,8 @@ export async function changePassword(_: FormState, form: FormData): Promise<Form
   const confirm = String(form.get('confirm') || '');
   const fieldErrors: Record<string, string> = {};
   if (!current) fieldErrors.current = 'Enter your current password.';
-  if (pw.length < 8) fieldErrors.password = 'Use at least 8 characters.';
+  const weak = passwordProblem(pw);
+  if (weak) fieldErrors.password = weak;
   else if (pw === current) fieldErrors.password = 'The new password must be different from the current one.';
   if (pw !== confirm) fieldErrors.confirm = 'The two passwords do not match.';
   if (Object.keys(fieldErrors).length) return { fieldErrors };

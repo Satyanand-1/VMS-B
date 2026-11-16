@@ -11,19 +11,11 @@ import { addDocumentVersion, extraDocs, hasCurrentFile, otherDocs, saveOtherDocs
 import { createLogin, loginNote, passwordFromForm, sendNewPassword } from '../domain/accounts';
 import { docDateErrors, phoneError } from '../validate';
 import { amOfVendor, notifyStaff, notifyUsers } from '../domain/notify';
+import { likeExact } from '../safe';
+import { savePaymentTerm } from '../domain/terms';
 import type { FormState } from './auth';
 
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
-
-// TM-10: "Custom" payment terms are Net + days; a new one is saved for later drop-downs.
-export async function savePaymentTerm(term: string): Promise<string | null> {
-  const t = term.trim();
-  const known = (await db().from('payment_terms').select('label').eq('label', t).maybeSingle()).data;
-  if (known) return null;
-  if (!/^Net\s([1-9]\d{0,2})$/.test(t)) return 'Use the format Net + number of days, e.g. Net 20.';
-  await db().from('payment_terms').insert({ label: t, sort: 50, is_custom: true });
-  return null;
-}
 
 const VENDOR_DOCS = ['MSA', 'PO', 'W-9', 'COI', 'ACH form'];
 async function checkDocs(form: FormData, names: string[], fe: Record<string, string>, reserved: string[] = []) {
@@ -38,9 +30,9 @@ async function checkDocs(form: FormData, names: string[], fe: Record<string, str
 
 // VN-3: Add Vendor (Super Admin, or Account Manager for themselves) + login details email (AUTH-2).
 export async function createVendorAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const s = await requireSession(['superadmin', 'accountmanager']);
   const v = {
     name: String(form.get('name') || '').trim(), address: String(form.get('address') || '').trim(), email: String(form.get('email') || '').trim().toLowerCase(),
     ein: String(form.get('ein') || '').replace(/\D/g, ''), phone: String(form.get('phone') || '').trim(), state: String(form.get('state_of_incorporation') || ''),
@@ -64,7 +56,7 @@ export async function createVendorAction(_: FormState, raw: FormData): Promise<F
   await checkDocs(form, ['msa', 'po'], fe);
   if (!uploadField(form, 'msa').file) fe.msa = 'Upload the MSA with its start and end date.';
   if (!fe.email && (await db().from('user_accounts').select('id').eq('email', v.email).maybeSingle()).data) fe.email = 'An account with this email already exists.';
-  if (!fe.name && (await db().from('vendors').select('id').ilike('name', v.name).maybeSingle()).data) fe.name = 'A vendor with this name already exists.';
+  if (!fe.name && (await db().from('vendors').select('id').ilike('name', likeExact(v.name)).maybeSingle()).data) fe.name = 'A vendor with this name already exists.';
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
 
   const row = must(await db().from('vendors').insert({
@@ -95,9 +87,9 @@ export async function createVendorAction(_: FormState, raw: FormData): Promise<F
 
 // Edit Vendor (Super Admin; Account Manager for own vendors). Name, EIN and email are admin-managed and read-only.
 export async function updateVendorAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const s = await requireSession(['superadmin', 'accountmanager']);
   const id = String(form.get('id'));
   if (!canSeeVendor(s, id)) return { error: 'You do not have access to this vendor.' };
   const before = must(await db().from('vendors').select('*').eq('id', id).single(), 'vendor') as Record<string, unknown> & { name: string };

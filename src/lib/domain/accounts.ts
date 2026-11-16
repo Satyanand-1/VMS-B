@@ -1,4 +1,5 @@
 import 'server-only';
+import { passwordProblem } from '../password';
 import { randomInt } from 'crypto';
 import { cookies } from 'next/headers';
 import { db, must } from '../supabase/admin';
@@ -23,9 +24,8 @@ export function tempPassword() {
 export function passwordFromForm(form: FormData): { password?: string; error?: string } {
   if (String(form.get('pw_mode') || 'generate') !== 'own') return { password: tempPassword() };
   const pw = String(form.get('pw_value') || '');
-  if (pw.length < 8) return { error: 'Use at least 8 characters for the password.' };
-  if (/\s/.test(pw)) return { error: 'The password cannot contain spaces.' };
-  return { password: pw };
+  const weak = passwordProblem(pw);
+  return weak ? { error: weak } : { password: pw };
 }
 
 export type LoginResult = { sent: boolean; email: string; password: string };

@@ -1,4 +1,5 @@
 'use server';
+import { passwordProblem } from '../password';
 import { isValidEmail } from '../email-format';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
@@ -55,7 +56,9 @@ export async function createAmAction(_: FormState, form: FormData): Promise<Form
 export async function updateAmAction(_: FormState, form: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin']);
   const id = String(form.get('id'));
-  const before = must(await db().from('user_accounts').select('*').eq('id', id).single(), 'am') as { full_name: string; email: string; status: string };
+  const before = (await db().from('user_accounts').select('*').eq('id', id).maybeSingle()).data as { full_name: string; email: string; status: string; role: string } | null;
+  // Only account manager accounts are edited here (never the Super Admin, a vendor or a resource).
+  if (!before || before.role !== 'account_manager') return { error: 'Account manager not found.' };
   const name = String(form.get('full_name') || '').trim();
   const email = String(form.get('email') || '').trim().toLowerCase();
   const phone = String(form.get('phone') || '').trim() || null;
@@ -90,7 +93,8 @@ export async function updateAmAction(_: FormState, form: FormData): Promise<Form
 export async function resendInviteAction(_: FormState, form: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin']);
   const id = String(form.get('id'));
-  const am = must(await db().from('user_accounts').select('full_name,email,status').eq('id', id).single(), 'am') as { full_name: string; email: string; status: string };
+  const am = (await db().from('user_accounts').select('full_name,email,status,role').eq('id', id).maybeSingle()).data as { full_name: string; email: string; status: string; role: string } | null;
+  if (!am || am.role !== 'account_manager') return { error: 'Account manager not found.' };
   if (am.status !== 'invited') return { error: 'Only invited account managers get a new invite.' };
   await sendInvite(id, am.email, am.full_name);
   await audit(s, 'invite', 'account_manager', id, `resent the invite to ${am.full_name}`);
@@ -102,7 +106,9 @@ export async function deleteAmAction(_: FormState, form: FormData): Promise<Form
   const s = await requireSession(['superadmin']);
   const id = String(form.get('id'));
   const to = String(form.get('reassign_to') || '');
-  const am = must(await db().from('user_accounts').select('full_name').eq('id', id).single(), 'am') as { full_name: string };
+  const am = (await db().from('user_accounts').select('full_name,role').eq('id', id).maybeSingle()).data as { full_name: string; role: string } | null;
+  // Only account managers can be deleted here: never the Super Admin (including yourself), a vendor or a resource.
+  if (!am || am.role !== 'account_manager' || id === s.account.id) return { error: 'Only account manager accounts can be deleted here.' };
   const [cl, vn] = await Promise.all([
     db().from('client_account_managers').select('client_id').eq('account_manager_id', id),
     db().from('vendors').select('id').eq('account_manager_id', id)
@@ -132,7 +138,8 @@ export async function acceptInviteAction(_: FormState, form: FormData): Promise<
   const token = String(form.get('token') || '');
   const pw = String(form.get('password') || '');
   const confirm = String(form.get('confirm') || '');
-  if (pw.length < 8) return { error: 'Use at least 8 characters.' };
+  const weak = passwordProblem(pw);
+  if (weak) return { error: weak };
   if (pw !== confirm) return { error: 'The two passwords do not match.' };
   const inv = (await db().from('invites').select('*').eq('token_hash', hash(token)).maybeSingle()).data as { id: string; user_id: string; expires_at: string; used_at: string | null; voided_at: string | null } | null;
   if (!inv || inv.used_at || inv.voided_at || new Date(inv.expires_at) < new Date()) return { error: 'This invite link is no longer valid. Ask the Super Admin to resend it.' };

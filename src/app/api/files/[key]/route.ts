@@ -7,8 +7,11 @@ import { signedUrl } from '@/lib/files';
 // Keys: d-<documentVersionId>, si-<submissionId> (invoice), st-<submissionId> (timesheet), ci-<clientInvoiceId>.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ key: string }> }) {
   const s = await loadSession();
-  if (!s || s.account.status === 'inactive' || passwordInfo(s.account).expired) return new NextResponse('Not signed in', { status: 401 });
+  // Same gate as every page: signed in, active, password not expired and the first-sign-in password already changed.
+  if (!s || s.account.status === 'inactive' || s.personType === 'consultant' || s.account.must_change_password || passwordInfo(s.account).expired)
+    return new NextResponse('Not signed in', { status: 401 });
   const { key } = await params;
+  if (!/^(d|si|st|ci)-[0-9a-f-]{36}$/.test(key)) return new NextResponse('File not found', { status: 404 });
   const [kind, ...rest] = key.split('-');
   const id = rest.join('-');
   let path: string | null = null;
@@ -43,5 +46,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
   if (!path) return new NextResponse('File not found', { status: 404 });
   if (!allowed) return new NextResponse('You do not have access to this file.', { status: 403 });
   const url = await signedUrl(path, req.nextUrl.searchParams.get('download') ? name : undefined);
-  return NextResponse.redirect(url);
+  const res = NextResponse.redirect(url);
+  res.headers.set('Cache-Control', 'no-store'); // the signed link is short-lived and personal
+  res.headers.set('Referrer-Policy', 'no-referrer');
+  return res;
 }

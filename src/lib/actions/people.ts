@@ -9,9 +9,10 @@ import { checkFile, unstage } from '../files';
 import { encrypt } from '../crypto';
 import { addDocumentVersion, auditPeriodOf, extraDocs, uploadField } from '../domain/documents';
 import { createLogin, loginNote, passwordFromForm } from '../domain/accounts';
-import { savePaymentTerm } from './vendors';
+import { savePaymentTerm } from '../domain/terms';
 import { badDate, docDateErrors, durationError, phoneError, rangeError } from '../validate';
 import { amOfPerson, notifyStaff } from '../domain/notify';
+import { likeExact, safeBack } from '../safe';
 import type { FormState } from './auth';
 
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
@@ -82,12 +83,12 @@ const reservedNames = (type: PType) => [...STAFF_DOCS[type].map((d) => d.name), 
 
 // Add Consultant (TM-2) / Add W-2 Resource (TM-4, TM-5) / Add 1099 Resource (TM-6, TM-7) + login details email.
 export async function createPersonAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const s = await requireSession(['superadmin', 'accountmanager']);
   const type = String(form.get('type')) as PType;
   const vendorId = type === 'consultant' ? String(form.get('vendor_id') || '') : null;
-  const back = String(form.get('back') || '/vendors');
+  const back = safeBack(form.get('back'), '/vendors');
   if (vendorId && !canSeeVendor(s, vendorId)) return { error: 'You do not have access to this vendor.' };
   const f = personFields(form);
   if (f.client_id && type !== 'consultant' && !canSeeClient(s, f.client_id)) return { fieldErrors: { client_id: 'Choose one of your clients.' } };
@@ -145,11 +146,11 @@ async function amFor(vendorId: string | null, clientId: string | null) {
 
 // TM-13: Edit person (Super Admin; Account Manager within scope). Every change is audited.
 export async function updatePersonAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const s = await requireSession(['superadmin', 'accountmanager']);
   const id = String(form.get('id'));
-  const back = String(form.get('back') || '/vendors');
+  const back = safeBack(form.get('back'), '/vendors');
   const before = must(await db().from('people').select('*').eq('id', id).single(), 'person') as Record<string, unknown> & { type: PType; vendor_id: string | null; client_id: string | null; full_name: string; id: string };
   if (!canSeePerson(s, before)) return { error: 'You do not have access to this person.' };
   const f = personFields(form);

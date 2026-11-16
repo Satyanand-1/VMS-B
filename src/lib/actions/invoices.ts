@@ -10,6 +10,7 @@ import { checkFile, storeFile, unstage } from '../files';
 import { fmtDate, monthLong, roundHalfUp } from '../format';
 import { monthOptions, type Submission, type Person } from '../data';
 import { amOfPerson, notifyStaff } from '../domain/notify';
+import { likeExact, safeBack } from '../safe';
 import type { FormState } from './auth';
 
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
@@ -48,15 +49,15 @@ export async function reviewAction(_: FormState, form: FormData): Promise<FormSt
     await notifySubmitter(person, `${sub.ref} rejected`, `${what} was rejected: ${reason}\nPlease correct and resubmit it.`);
   }
   revalidatePath('/invoice-management');
-  const back = String(form.get('back') || '/invoice-management');
+  const back = safeBack(form.get('back'), '/invoice-management');
   redirect(`${back}${back.includes('?') ? '&' : '?'}${flash(decision === 'approve' ? 'Approved' : 'Rejected', `${what} is now ${decision === 'approve' ? 'Approved' : 'Rejected'}.`)}`);
 }
 
 // A missing client invoice can be uploaded in the Review pop-up (CI-4).
 export async function reviewClientInvoiceAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const s = await requireSession(['superadmin', 'accountmanager']);
   const personId = String(form.get('person_id'));
   const period = String(form.get('period'));
   const person = must(await db().from('people').select('id,full_name,client_id,vendor_id').eq('id', personId).single(), 'person') as Person;
@@ -108,9 +109,9 @@ async function filesFrom(form: FormData, w2: boolean, required: boolean) {
 }
 
 export async function submitAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['vendor', 'w2', 'w9']);
   let form: FormData;
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const s = await requireSession(['vendor', 'w2', 'w9']);
   const personId = s.persona === 'vendor' ? String(form.get('person_id') || '') : s.account.person_id!;
   const period = String(form.get('period') || '');
   const back = s.persona === 'w2' ? '/timesheets' : '/invoices';
@@ -149,9 +150,9 @@ export async function submitAction(_: FormState, raw: FormData): Promise<FormSta
 
 // Resubmit a rejected submission, or replace a file while In Progress / Rejected (REC-6, REC-7, INV-12).
 export async function resubmitAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['vendor', 'w2', 'w9']);
   let form: FormData;
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const s = await requireSession(['vendor', 'w2', 'w9']);
   const old = must(await db().from('submissions').select('*').eq('id', String(form.get('submission_id'))).single(), 'submission') as Submission;
   const p = await submitter(s, old.person_id);
   if (!p) return { error: 'You can only change your own submissions.' };
@@ -187,4 +188,3 @@ export async function resubmitAction(_: FormState, raw: FormData): Promise<FormS
   redirect(`${back}?${flash(mode === 'resubmit' ? `${old.ref} resubmitted` : 'File replaced', `${old.ref} is In Progress for review again. The earlier version is kept as Superseded.`)}`);
 }
 
-export async function canSubmitFor(s: Session, p: Person) { return canSeePerson(s, p); }

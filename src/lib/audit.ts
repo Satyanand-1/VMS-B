@@ -2,6 +2,13 @@ import 'server-only';
 import { db } from './supabase/admin';
 import type { Session } from './session';
 
+// Never written to the audit trail: encrypted SSN / EIN, passwords and tokens (only that they changed is recorded via the summary).
+const SECRET_KEY = /(_enc|password|pw_value|token|secret)$/i;
+function scrub(v: unknown): unknown {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return v ?? null;
+  return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k, x]) => !SECRET_KEY.test(k) && x !== undefined));
+}
+
 // Append-only audit trail (AUD-1): who, what, when, before and after.
 export async function audit(
   s: Pick<Session, 'account'> | null,
@@ -20,7 +27,7 @@ export async function audit(
     entity,
     entity_id: entityId,
     summary,
-    before: before ?? null,
-    after: after ?? null
+    before: scrub(before),
+    after: scrub(after)
   });
 }

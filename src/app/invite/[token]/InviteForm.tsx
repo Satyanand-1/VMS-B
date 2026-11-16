@@ -11,7 +11,7 @@ export function InviteForm({ token }: { token: string }) {
       <form className="login-form" onSubmit={action}>
         <input type="hidden" name="token" value={token} />
         <label htmlFor="newPassword">New password</label>
-        <input type="password" id="newPassword" name="password" autoComplete="new-password" placeholder="At least 8 characters" />
+        <input type="password" id="newPassword" name="password" autoComplete="new-password" placeholder="8+ characters, with a letter and a number" />
         <label htmlFor="confirmPassword">Confirm new password</label>
         <input type="password" id="confirmPassword" name="confirm" autoComplete="new-password" />
         {state?.error ? <div className="login-error">{state.error}</div> : null}

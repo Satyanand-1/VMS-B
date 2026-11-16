@@ -7,10 +7,13 @@ export async function sendEmail(template: string, to: string, subject: string, t
   let status = 'sent';
   let error: string | null = null;
   try {
+    const port = Number(process.env.SMTP_PORT || 587);
     const transport = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: false,
+      port,
+      // Login details travel by email: always encrypted in production (TLS on 465, STARTTLS required otherwise).
+      secure: port === 465,
+      requireTLS: port !== 465 && process.env.NODE_ENV === 'production',
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined
     });
     await transport.sendMail({ from: process.env.SMTP_FROM, to, subject, text });

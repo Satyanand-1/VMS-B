@@ -19,6 +19,7 @@ function clientDetailErrors(f: { address: string | null; currency: string; time_
 import { monthLong } from '../format';
 import { docDateErrors } from '../validate';
 import { amOfPerson, notifyStaff, notifyUsers } from '../domain/notify';
+import { likeExact, safeBack } from '../safe';
 import type { FormState } from './auth';
 
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
@@ -36,9 +37,9 @@ function clientFields(form: FormData) {
 
 // CL-4: Super Admin only.
 export async function createClientAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['superadmin']);
   let form: FormData;
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const s = await requireSession(['superadmin']);
   const f = clientFields(form);
   const ams = form.getAll('account_managers').map(String);
   const msa = uploadField(form, 'msa');
@@ -54,7 +55,7 @@ export async function createClientAction(_: FormState, raw: FormData): Promise<F
   docDateErrors(form, ['msa'], fe, { reserved: CLIENT_DOCS });
   for (const x of extraDocs(form)) if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
-  const dup = (await db().from('clients').select('id').ilike('name', f.name).maybeSingle()).data;
+  const dup = (await db().from('clients').select('id').ilike('name', likeExact(f.name)).maybeSingle()).data;
   if (dup) return { fieldErrors: { name: 'A client with this name already exists.' } };
 
   const code = f.name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'CL';
@@ -71,9 +72,9 @@ export async function createClientAction(_: FormState, raw: FormData): Promise<F
 
 // CL-6 / CL-8: Super Admin edits everything; an Account Manager edits their own client but not its account managers.
 export async function updateClientAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const s = await requireSession(['superadmin', 'accountmanager']);
   const id = String(form.get('id'));
   if (!canSeeClient(s, id)) return { error: 'You do not have access to this client.' };
   const before = must(await db().from('clients').select('*').eq('id', id).single(), 'client') as Record<string, unknown>;
@@ -122,12 +123,12 @@ export async function updateClientAction(_: FormState, raw: FormData): Promise<F
 
 // CL-3: upload the client invoice (file + billable hours) for every row filled in, in one save.
 export async function saveClientInvoicesAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const s = await requireSession(['superadmin', 'accountmanager']);
   if (!isStaff(s)) return { error: 'Not allowed.' };
   const period = String(form.get('period'));
-  const back = String(form.get('back') || '/clients');
+  const back = safeBack(form.get('back'), '/clients');
   const personIds = Array.from(new Set(Array.from(form.keys()).filter((k) => k.startsWith('hours_') || k.startsWith('file_')).map((k) => k.split('_')[1])));
   const fe: Record<string, string> = {};
   const todo: { personId: string; file: File; hours: number; clientId: string; name: string }[] = [];

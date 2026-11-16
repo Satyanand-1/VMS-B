@@ -6,6 +6,8 @@ import { createServerClient } from '@supabase/ssr';
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    // Same as src/lib/supabase/server.ts: sign-in cookies are httpOnly, HTTPS-only in production and SameSite=Lax.
+    cookieOptions: { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' },
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (list) => {

@@ -17,7 +17,10 @@ async function stageFiles(fd: FormData): Promise<FormData | string> {
     if (v instanceof File && v.size > 0) {
       const st = await stageUploadAction(v.name, v.size);
       if ('error' in st) return `${v.name}: ${st.error}`;
-      const { error } = await browserClient().storage.from('vms-files').uploadToSignedUrl(st.path, st.token, v, { contentType: v.type || undefined });
+      // Content type from the extension (browsers sometimes send none); the bucket accepts only these four types.
+      const ext = v.name.split('.').pop()?.toLowerCase() || '';
+      const contentType = ({ pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' } as Record<string, string>)[ext];
+      const { error } = await browserClient().storage.from('vms-files').uploadToSignedUrl(st.path, st.token, v, { contentType });
       if (error) return `${v.name}: upload failed (${error.message}).`;
       out.append(k, `${STAGED}${JSON.stringify({ path: st.path, name: v.name, type: v.type })}`);
     } else out.append(k, v instanceof File ? '' : v); // keep empty file slots so "Other documents" rows stay aligned
