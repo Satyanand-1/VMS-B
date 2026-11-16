@@ -7,7 +7,7 @@ import { requireSession, canSeeClient, canSeePerson, type Session } from '../ses
 import { audit } from '../audit';
 import { sendEmail } from '../email';
 import { checkFile, storeFile, unstage } from '../files';
-import { monthLong, roundHalfUp } from '../format';
+import { fmtDate, monthLong, roundHalfUp } from '../format';
 import { approvalWindow, monthOptions, type Submission, type Person } from '../data';
 import { amOfPerson, notifyStaff } from '../domain/notify';
 import { likeExact, safeBack } from '../safe';
@@ -186,6 +186,8 @@ export async function submitAction(_: FormState, raw: FormData): Promise<FormSta
   if (!p.client_id) return { error: `${p.full_name} is not mapped to a client yet. Contact your account manager.` };
   const w2 = p.type === 'w2';
   if (!/^\d{4}-\d{2}-01$/.test(period) || !monthOptions().includes(period)) fe.period = 'Choose the billing period.';
+  // Nothing can be submitted for a month before the person's start date.
+  else if (p.start_date && p.start_date.slice(0, 7) > period.slice(0, 7)) fe.period = `${p.full_name} starts on ${fmtDate(p.start_date)}; choose ${monthLong(`${p.start_date.slice(0, 7)}-01`)} or later.`;
   const hours = Number(form.get('hours'));
   if (!(hours > 0 && hours <= 744)) fe.hours = 'Enter the total hours for the month (more than 0).';
   const files = await filesFrom(form, w2, true);

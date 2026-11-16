@@ -40,18 +40,23 @@ export async function SubmissionsPortal({ s, sp, path }: { s: Session; sp: Recor
     : [<span key="r" className="mono">{x.ref}</span>, monthShort(x.period), String(Number(x.hours)), usd(x.amount), <Badge key="s" text={shown(x)} />, actions(x)]);
 
   // Upload form data: active people mapped to a client, with months not yet submitted (INV-8)
-  // The current month and the three before it, whatever the assignment dates (dates are often entered or corrected later,
-  // and the client invoice can be uploaded for these months too); only months already submitted are left out.
+  // The current month and the three before it, from the person's start month on (nothing can be submitted for a month
+  // before the start date); months already submitted are left out.
   const periods = monthOptions();
+  const startsLater = (p: Person, pr: string) => !!p.start_date && p.start_date.slice(0, 7) > pr.slice(0, 7);
   const mapped = people.filter((p) => p.client_id && (p.status === 'active' || p.status === 'onboarding'));
   const submitPeople: SubmitPerson[] = mapped.map((p) => ({
     id: p.id, name: p.full_name, client: m.client[p.client_id!]?.name, rate: Number(p.hourly_rate),
     term: p.vendor_id ? m.vendor[p.vendor_id]?.payment_term : p.payment_term || 'Net 10',
-    openPeriods: periods.filter((pr) => !subs.some((x) => x.person_id === p.id && x.period === pr && x.status !== 'superseded')).map((pr) => ({ value: pr, label: monthLong(pr) }))
+    openPeriods: periods.filter((pr) => !startsLater(p, pr) && !subs.some((x) => x.person_id === p.id && x.period === pr && x.status !== 'superseded')).map((pr) => ({ value: pr, label: monthLong(pr) }))
   })).filter((p) => p.openPeriods.length);
   const noneNote = vendor && !people.length ? 'No consultants have been added for your company yet. Your account manager adds them.'
     : !mapped.length
     ? (vendor ? 'None of your consultants is mapped to a client yet. Contact your account manager.' : 'You are not mapped to a client yet. Contact your account manager.')
+    : mapped.every((p) => p.start_date && p.start_date.slice(0, 7) > periods[0].slice(0, 7))
+    ? (mapped.length === 1
+      ? `${vendor ? `${mapped[0].full_name} starts` : 'Your assignment starts'} on ${fmtDate(mapped[0].start_date)}. ${w2 ? 'Timesheets' : 'Invoices'} can be submitted from ${monthLong(`${mapped[0].start_date!.slice(0, 7)}-01`)}.`
+      : `${vendor ? 'Your consultants start' : 'Your assignment starts'} after this month. ${w2 ? 'Timesheets' : 'Invoices'} can be submitted from the start month.`)
     : `Every open month already has ${w2 ? 'a timesheet' : 'an invoice'}. A rejected one is corrected with Resubmit from its row.`;
 
   let modal = null;
