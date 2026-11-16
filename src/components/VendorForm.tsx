@@ -33,7 +33,7 @@ export function VendorForm({ mode, data, terms, amOptions, canPickAm, amName, si
         <Section title={add ? 'Vendor details' : 'Company'}>
           <Text name="name" label="Name" value={data.name} required={add} readOnly={!add} lock="Admin-managed" errors={fe} />
           <Text name="address" label="Address" value={data.address} required full errors={fe} />
-          <Text name="email" label="Email (username)" value={data.email} required={add} readOnly={!add} lock="Admin-managed" errors={fe} note={add ? 'Sign-in username. Login details are sent to this address.' : undefined} />
+          <Text name="email" label="Email (username)" value={data.email} required={add} readOnly={!add} lock="Admin-managed" errors={fe} />
           <Text name="ein" label="Federal ID (EIN)" value={add ? '' : data.einMasked} required={add} readOnly={!add} lock="Admin-managed" placeholder="12-3456789" errors={fe} />
           <Text name="phone" label="Phone" value={data.phone} required errors={fe} />
           <Select name="state_of_incorporation" label="State of incorporation" value={data.state_of_incorporation || ''} required errors={fe}
@@ -45,7 +45,7 @@ export function VendorForm({ mode, data, terms, amOptions, canPickAm, amName, si
           <PaymentTerm terms={terms} value={data.payment_term} errors={fe} />
           {!add ? <Select name="status" label="Status" value={data.status} options={[{ value: 'active', label: 'Active' }, { value: 'onboarding', label: 'Onboarding' }, { value: 'inactive', label: 'Inactive' }]} /> : null}
         </Section>
-        <Section title="Documents uploaded by the account manager" hint="PDF, DOCX, JPG or PNG · max 5 MB. Enter the start and end date of each. The MSA is required; a PO not uploaded now is marked Incomplete in the Document Tracker.">
+        <Section title="Documents uploaded by the account manager" hint="PDF, DOCX, JPG or PNG · max 5 MB">
           <UploadRow name="msa" label="MSA" existing={data.msa?.file} required dates={{ start: data.msa?.start, end: data.msa?.end }} errors={fe} />
           <UploadRow name="po" label="PO" existing={data.po?.file} dates={{ start: data.po?.start, end: data.po?.end }} errors={fe} />
           {(data.others || []).map((d) => <UploadRow key={d.id} name={`doc_${d.id}`} label={d.doc_type} existing={d.file} dates={{ start: d.start, end: d.end }} errors={fe} />)}
@@ -53,7 +53,7 @@ export function VendorForm({ mode, data, terms, amOptions, canPickAm, amName, si
           {fe?.extra ? <span className="field-error">{fe.extra}</span> : null}
         </Section>
         {add ? (
-          <Section title="Sign-in" hint="The vendor’s username is the email above. Passwords expire every 30 days.">
+          <Section title="Sign-in">
             <PasswordChoice errors={fe} />
           </Section>
         ) : null}

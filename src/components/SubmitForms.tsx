@@ -43,7 +43,7 @@ export function SubmitForm({ people, w2, vendor, cancelHref, emptyNote }: { peop
         ) : null}
         <div className="field"><label>Payment term<span className="lock">From assignment</span></label><input className="readonly" readOnly value={p?.term || ''} /></div>
       </Section>
-      <Section title="Attachments" hint="PDF, DOCX, JPG, JPEG or PNG · max 5 MB per file.">
+      <Section title="Attachments" hint="PDF, DOCX, JPG or PNG · max 5 MB">
         {!w2 ? <UploadRow name="invoice" label="Invoice" required errors={fe} /> : null}
         <UploadRow name="timesheet" label="Timesheet" required errors={fe} />
       </Section>
@@ -68,7 +68,7 @@ export function ResubmitForm({ sub, w2, cancelHref }: { sub: { id: string; ref: 
           {fe?.hours ? <span className="field-error srv">{fe.hours}</span> : null}</div>
         {!w2 ? <div className="field"><label>Invoice amount (USD)<span className="lock">Auto-calculated</span></label><input className="readonly" readOnly value={money(Number(hours) > 0 ? round(Number(hours) * sub.rate) : 0)} /></div> : null}
       </Section>
-      <Section title="Attachments" hint="Upload the corrected files. A file you don’t replace is kept from the rejected version.">
+      <Section title="Attachments" hint="PDF, DOCX, JPG or PNG · max 5 MB">
         {!w2 ? <UploadRow name="invoice" label="Invoice" note={sub.invoice ? `Rejected version: ${sub.invoice}` : undefined} errors={fe} /> : null}
         <UploadRow name="timesheet" label="Timesheet" note={sub.timesheet ? `Rejected version: ${sub.timesheet}` : undefined} errors={fe} />
       </Section>

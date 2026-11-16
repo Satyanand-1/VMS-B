@@ -6,10 +6,10 @@ import { ChangePasswordForm } from './ChangePasswordForm';
 export default async function ChangePasswordPage() {
   const s = await requireSession(['vendor', 'w2', 'w9']);
   const p = passwordInfo(s.account);
-  const status = p.expired ? `expired on ${p.expires}` : `was set on ${p.set} and expires on ${p.expires} (${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'} left)`;
+  const status = p.expired ? `Expired on ${p.expires}` : `Expires on ${p.expires} (${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'} left)`;
   return (
-    <Page s={s} title="Change Password" description="Enter your current password, then choose a new one. Each password is valid for 30 days.">
-      <ChangePasswordForm hint={`Passwords expire every 30 days. Your current password ${status}. Changing it now, even on day 29 or 30, keeps you signed in for the next 30 days from today.`} />
+    <Page s={s} title="Change Password">
+      <ChangePasswordForm hint={status} />
     </Page>
   );
 }

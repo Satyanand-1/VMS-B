@@ -10,7 +10,7 @@ export function ChangePasswordForm({ hint }: { hint: string }) {
     <form className="form-card" onSubmit={action}>
       <Section title="Change password" hint={hint}>
         <Text name="current" label="Current password" type="password" required autoComplete="current-password" errors={fe} />
-        <Text name="password" label="New password" type="password" required autoComplete="new-password" placeholder="8+ characters, with a letter and a number" note="Must be different from your current password." errors={fe} />
+        <Text name="password" label="New password" type="password" required autoComplete="new-password" placeholder="8+ characters, with a letter and a number" errors={fe} />
         <Text name="confirm" label="Confirm new password" type="password" required autoComplete="new-password" errors={fe} />
       </Section>
       <FormFooter cancelHref="/dashboard" submitLabel="Change Password" pending={pending} error={state?.error} />

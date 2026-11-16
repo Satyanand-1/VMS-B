@@ -85,7 +85,8 @@ export function Filters({ filters }: { filters: { label: string; param: string; 
 
 /* ---------------- Pop-up (modal) ---------------- */
 // Each pop-up is part of the URL (?m=…), so Back closes it. Closing goes back to the same page without ?m.
-export function Modal({ title, description, closeHref, children, wide }: { title: ReactNode; description?: ReactNode; closeHref: string; children: ReactNode; wide?: boolean }) {
+// `description` is still accepted from callers but no longer shown.
+export function Modal({ title, closeHref, children, wide }: { title: ReactNode; description?: ReactNode; closeHref: string; children: ReactNode; wide?: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
   // A different pop-up (other record or action) gets a fresh form: otherwise React reuses the previous form's
@@ -106,7 +107,7 @@ export function Modal({ title, description, closeHref, children, wide }: { title
         <div className="modal-head">
           <div>
             <h2 className="modal-title" id="modalTitle">{title}</h2>
-            {description ? <p className="modal-desc">{description}</p> : null}
+            {/* Pop-ups show only their title (no explanatory sentence under it). */}
           </div>
           <button type="button" className="modal-close" aria-label="Close" onClick={close}>×</button>
         </div>

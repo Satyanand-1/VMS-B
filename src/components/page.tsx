@@ -14,7 +14,8 @@ import type { Session } from '@/lib/session';
 
 const ROLE_LABEL = { superadmin: 'Super Admin', accountmanager: 'Account Manager', vendor: '', w2: 'W-2 Resource', w9: '1099 Resource' };
 
-export async function Page({ s, title, parent, description, actions, flash, children }: {
+// `description` is still accepted from pages but no longer shown.
+export async function Page({ s, title, parent, actions, flash, children }: {
   s: Session; title: string; parent?: { label: string; href: string }; description?: ReactNode; actions?: ReactNode;
   flash?: string; children: ReactNode;
 }) {
@@ -50,9 +51,10 @@ export async function Page({ s, title, parent, description, actions, flash, chil
       </header>
       <section className="screen-container">
         <div className="screen">
-          {description !== undefined || actions ? (
+          {/* No explanatory text under the page title (kept short and clean); only the page's action buttons. */}
+          {actions ? (
             <div className="screen-head">
-              <p className="screen-desc">{description}</p>
+              <span className="screen-desc" aria-hidden="true" />
               <div className="screen-actions">{actions}</div>
             </div>
           ) : null}

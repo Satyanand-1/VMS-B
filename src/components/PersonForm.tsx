@@ -52,7 +52,7 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
           <Section title="Personal details">
             <Text name="full_name" label="Full name" value={data.full_name} required errors={fe} />
             <Text name="ssn" label="SSN" value="" required={mode === 'add'} errors={fe} placeholder={mode === 'edit' ? `${data.ssnMasked} — enter to change` : '123-45-6789'} />
-            <Text name="email" label="Email (username)" value={data.email} required errors={fe} note="Sign-in username. Login details are sent to this address." />
+            <Text name="email" label="Email (username)" value={data.email} required errors={fe} />
             <Text name="phone" label="Phone" value={data.phone} errors={fe} />
             <Text name="address" label="Address" value={data.address} required full errors={fe} />
           </Section>
@@ -75,10 +75,7 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
             </>
           ) : null}
         </Section>
-        <Section title={docTitle} hint={mode === 'add'
-          ? (consultant ? 'PDF, DOCX, JPG or PNG · max 5 MB each. Enter a start and end date for each document except the resume (it has no dates). Missing documents can be added later; the audit report (a separate document from the I-9) is added later, for each 3- or 6-month period.'
-            : 'Every document except ACH, audit report and payslips has a start and end date. Anything not uploaded now is marked Incomplete in the Document Tracker.')
-          : 'Upload a file to add a new version; earlier versions stay in history. Documents the resource uploads can only be viewed here.'}>
+        <Section title={docTitle} hint="PDF, DOCX, JPG or PNG · max 5 MB">
           {mode === 'add' ? (
             <>
               {ADD_DOCS[type].map((d) => <UploadRow key={d.field} name={d.field} label={d.label} dates={d.dates ? {} : false} multiple={d.multiple} errors={fe} />)}
@@ -97,7 +94,7 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
           {fe?.extra ? <span className="field-error">{fe.extra}</span> : null}
         </Section>
         {!consultant && mode === 'add' ? (
-          <Section title="Sign-in" hint="The resource’s username is the email above. Passwords expire every 30 days.">
+          <Section title="Sign-in">
             <PasswordChoice errors={fe} />
           </Section>
         ) : null}

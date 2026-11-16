@@ -33,8 +33,7 @@ export function ClientForm({ mode, data, amOptions, canEditAms, amNames, cancelH
         {canEditAms
           ? <MultiSelect name="account_managers" label="Account managers" options={amOptions} selected={data.ams} required errors={fe} placeholder="Select account managers…" />
           : <Text name="am_readonly" label="Account managers" value={amNames} readOnly lock="Assigned by Super Admin" full />}
-        {mode === 'edit' ? <Select name="status" label="Status" value={data.status} required options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]}
-          note="Inactive clients stay on record but get no new invoices." /> : null}
+        {mode === 'edit' ? <Select name="status" label="Status" value={data.status} required options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} /> : null}
       </Section>
       <Section title="Master Services Agreement">
         <DateRange startName="msa__start" endName="msa__end" startLabel="MSA start date" endLabel="MSA end date" start={data.msaStart} end={data.msaEnd} required errors={fe} />

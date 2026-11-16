@@ -323,7 +323,6 @@ export function UploadRow({ name, label, existing, dates, auditPeriod, locked, m
             <div className="validity-cell"><span className="expiry-label">Audit period</span><select name={`${name}__period`}><option>6 months</option><option>3 months</option></select></div>
             <div className="validity-cell"><span className="expiry-label">Period start</span><DateInput name={`${name}__start`} label="Period start" /></div>
           </div>
-          <span className="person-sub">A new report replaces the one shown; earlier reports stay in version history.</span>
         </>
       ) : null}
       {dates && !locked ? (
@@ -418,7 +417,6 @@ export function PasswordChoice({ errors, compact }: { errors?: Errors; compact?:
         </div>
       ) : <span className="person-sub">A random 14-character password is created.</span>}
       {errors?.pw_value ? <span className="field-error srv">{errors.pw_value}</span> : null}
-      <span className="person-sub">The username (their email) and this password are emailed. They must choose their own password at first sign-in.</span>
     </div>
   );
 }

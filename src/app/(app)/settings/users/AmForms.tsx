@@ -21,16 +21,15 @@ export function AmForm({ mode, data, clientOptions, cancelHref, signIn }: {
         {data.id ? <input type="hidden" name="id" value={data.id} /> : null}
         <Section title="Account manager">
           <Text name="full_name" label="Full name" value={data.full_name} required errors={fe} />
-          <Text name="email" label="Work email (username)" value={data.email} required errors={fe} note={mode === 'add' ? 'Sign-in username. Login details are sent to this address.' : undefined} />
+          <Text name="email" label="Work email (username)" value={data.email} required errors={fe} />
           <Text name="phone" label="Phone" value={data.phone} errors={fe} />
           <Text name="role" label="Role" value="Account Manager" readOnly lock="Fixed" />
-          {mode === 'edit' ? <Select name="status" label="Status" value={data.status} options={[{ value: 'active', label: 'Active' }, { value: 'invited', label: 'Invited' }, { value: 'inactive', label: 'Inactive' }]}
-            note="An Inactive account manager cannot sign in." /> : null}
+          {mode === 'edit' ? <Select name="status" label="Status" value={data.status} options={[{ value: 'active', label: 'Active' }, { value: 'invited', label: 'Invited' }, { value: 'inactive', label: 'Inactive' }]} /> : null}
           {clientOptions.length || mode === 'edit'
             ? <MultiSelect name="clients" label="Clients" options={clientOptions} selected={data.clients} errors={fe} placeholder="Select clients…" />
             : <Text name="clients_none" label="Clients" value="No clients yet — assign this account manager when you add a client" readOnly lock="Later" full />}
         </Section>
-        {mode === 'add' ? <Section title="Sign-in" hint="The username is the work email above."><PasswordChoice errors={fe} /></Section> : null}
+        {mode === 'add' ? <Section title="Sign-in"><PasswordChoice errors={fe} /></Section> : null}
       </form>
       {mode === 'edit' && signIn ? (
         <div className="form-section"><div className="section-head"><div className="section-title">Sign-in</div></div><div className="form-grid"><div className="field full"><PasswordBox info={signIn} staff /></div></div></div>
