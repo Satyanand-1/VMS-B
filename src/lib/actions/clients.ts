@@ -5,8 +5,16 @@ import { db, must } from '../supabase/admin';
 import { requireSession, canSeeClient, isStaff } from '../session';
 import { audit } from '../audit';
 import { checkFile, storeFile, unstage } from '../files';
-import { addDocumentVersion, extraDocs, otherDocs, saveOtherDocs, uploadField } from '../domain/documents';
+import { addDocumentVersion, extraDocs, hasCurrentFile, otherDocs, saveOtherDocs, uploadField } from '../domain/documents';
 const CLIENT_DOCS = ['MSA', 'MSA document', 'Master Services Agreement'];
+const CURRENCIES = ['USD', 'CAD'];
+const ZONES = ['America/Chicago', 'America/New_York', 'America/Los_Angeles'];
+// Address, currency and time zone are required for every client (add and edit).
+function clientDetailErrors(f: { address: string | null; currency: string; time_zone: string }, fe: Record<string, string>) {
+  if (!f.address) fe.address = 'Enter the address.';
+  if (!CURRENCIES.includes(f.currency)) fe.currency = 'Choose the currency.';
+  if (!ZONES.includes(f.time_zone)) fe.time_zone = 'Choose the time zone.';
+}
 import { monthLong } from '../format';
 import { docDateErrors } from '../validate';
 import type { FormState } from './auth';
@@ -19,8 +27,8 @@ function clientFields(form: FormData) {
     name: String(form.get('name') || '').trim(),
     email: String(form.get('email') || '').trim(),
     address: String(form.get('address') || '').trim() || null,
-    currency: String(form.get('currency') || 'USD'),
-    time_zone: String(form.get('time_zone') || 'America/New_York'),
+    currency: String(form.get('currency') || ''),
+    time_zone: String(form.get('time_zone') || ''),
     region: String(form.get('region') || '').trim() || null
   };
 }
@@ -37,9 +45,11 @@ export async function createClientAction(_: FormState, raw: FormData): Promise<F
   if (!f.name) fe.name = 'Enter the client name.';
   if (!EMAIL.test(f.email)) fe.email = 'Enter a valid email address.';
   if (!ams.length) fe.account_managers = 'Select at least one account manager.';
+  clientDetailErrors(f, fe);
   if (!msa.start) fe.msa__start = 'Enter the MSA start date.';
   if (!msa.end) fe.msa__end = 'Enter the MSA end date.';
   if (msa.file) { const p = await checkFile(msa.file); if (p) fe.msa = p; }
+  else fe.msa = 'Upload the MSA document.';
   docDateErrors(form, ['msa'], fe, { reserved: CLIENT_DOCS });
   for (const x of extraDocs(form)) if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
@@ -71,9 +81,11 @@ export async function updateClientAction(_: FormState, raw: FormData): Promise<F
   const fe: Record<string, string> = {};
   if (!f.name) fe.name = 'Enter the client name.';
   if (!EMAIL.test(f.email)) fe.email = 'Enter a valid email address.';
+  clientDetailErrors(f, fe);
   if (!msa.start) fe.msa__start = 'Enter the MSA start date.';
   if (!msa.end) fe.msa__end = 'Enter the MSA end date.';
   if (msa.file) { const p = await checkFile(msa.file); if (p) fe.msa = p; }
+  else if (!(await hasCurrentFile('client', id, 'MSA'))) fe.msa = 'Upload the MSA document.';
   const { all, others } = await otherDocs('client', id, ['MSA']);
   docDateErrors(form, ['msa', ...others.map((d) => `doc_${d.id}`)], fe, { dated: others.map((d) => `doc_${d.id}`), reserved: [...CLIENT_DOCS, ...all] });
   for (const d of others) { const u = uploadField(form, `doc_${d.id}`); if (u.file) { const p = await checkFile(u.file); if (p) fe[`doc_${d.id}`] = p; } }

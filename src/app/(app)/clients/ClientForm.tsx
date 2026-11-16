@@ -26,9 +26,10 @@ export function ClientForm({ mode, data, amOptions, canEditAms, amNames, cancelH
       <Section title="Client details">
         <Text name="name" label="Client name" value={data.name} required placeholder="Enter client name" errors={fe} />
         <Text name="email" label="Billing email" value={data.email} required placeholder="name@company.com" errors={fe} />
-        <Text name="address" label="Address" value={data.address} full placeholder="Street, city, state, ZIP" errors={fe} />
-        <Select name="currency" label="Currency" value={data.currency || 'USD'} options={[{ value: 'USD', label: 'USD — US Dollar' }, { value: 'CAD', label: 'CAD — Canadian Dollar' }]} />
-        <Select name="time_zone" label="Time zone" value={data.time_zone || 'America/New_York'} options={ZONES} />
+        <Text name="address" label="Address" value={data.address} required full placeholder="Street, city, state, ZIP" errors={fe} />
+        <Select name="currency" label="Currency" value={data.currency || ''} required errors={fe}
+          options={[{ value: '', label: 'Select currency…' }, { value: 'USD', label: 'USD — US Dollar' }, { value: 'CAD', label: 'CAD — Canadian Dollar' }]} />
+        <Select name="time_zone" label="Time zone" value={data.time_zone || ''} required errors={fe} options={[{ value: '', label: 'Select time zone…' }, ...ZONES]} />
         {canEditAms
           ? <MultiSelect name="account_managers" label="Account managers" options={amOptions} selected={data.ams} required errors={fe} placeholder="Select account managers…" />
           : <Text name="am_readonly" label="Account managers" value={amNames} readOnly lock="Assigned by Super Admin" full />}
@@ -37,7 +38,7 @@ export function ClientForm({ mode, data, amOptions, canEditAms, amNames, cancelH
       </Section>
       <Section title="Master Services Agreement">
         <DateRange startName="msa__start" endName="msa__end" startLabel="MSA start date" endLabel="MSA end date" start={data.msaStart} end={data.msaEnd} required errors={fe} />
-        <UploadRow name="msa" label="MSA document" existing={data.msaFile} errors={fe} />
+        <UploadRow name="msa" label="MSA document" existing={data.msaFile} required errors={fe} />
         {(data.others || []).map((d) => <UploadRow key={d.id} name={`doc_${d.id}`} label={d.doc_type} existing={d.file} dates={{ start: d.start, end: d.end }} errors={fe} />)}
         <ExtraDocs reserved={['MSA', 'MSA document', 'Master Services Agreement', ...(data.others || []).map((d) => d.doc_type)]} />
         {fe?.extra ? <span className="field-error">{fe.extra}</span> : null}

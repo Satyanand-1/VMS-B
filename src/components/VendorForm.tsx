@@ -45,8 +45,8 @@ export function VendorForm({ mode, data, terms, amOptions, canPickAm, amName, si
           <PaymentTerm terms={terms} value={data.payment_term} errors={fe} />
           {!add ? <Select name="status" label="Status" value={data.status} options={[{ value: 'active', label: 'Active' }, { value: 'onboarding', label: 'Onboarding' }, { value: 'inactive', label: 'Inactive' }]} /> : null}
         </Section>
-        <Section title="Documents uploaded by the account manager" hint="PDF, DOCX, JPG or PNG · max 5 MB. Enter the start and end date of each. Documents not uploaded now are marked Incomplete in the Document Tracker.">
-          <UploadRow name="msa" label="MSA" existing={data.msa?.file} dates={{ start: data.msa?.start, end: data.msa?.end }} errors={fe} />
+        <Section title="Documents uploaded by the account manager" hint="PDF, DOCX, JPG or PNG · max 5 MB. Enter the start and end date of each. The MSA is required; a PO not uploaded now is marked Incomplete in the Document Tracker.">
+          <UploadRow name="msa" label="MSA" existing={data.msa?.file} required dates={{ start: data.msa?.start, end: data.msa?.end }} errors={fe} />
           <UploadRow name="po" label="PO" existing={data.po?.file} dates={{ start: data.po?.start, end: data.po?.end }} errors={fe} />
           {(data.others || []).map((d) => <UploadRow key={d.id} name={`doc_${d.id}`} label={d.doc_type} existing={d.file} dates={{ start: d.start, end: d.end }} errors={fe} />)}
           <ExtraDocs reserved={['MSA', 'PO', 'W-9', 'COI', 'ACH form', ...(data.takenNames || [])]} />

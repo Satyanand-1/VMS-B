@@ -54,7 +54,7 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
             <Text name="ssn" label="SSN" value="" required={mode === 'add'} errors={fe} placeholder={mode === 'edit' ? `${data.ssnMasked} — enter to change` : '123-45-6789'} />
             <Text name="email" label="Email (username)" value={data.email} required errors={fe} note="Sign-in username. Login details are sent to this address." />
             <Text name="phone" label="Phone" value={data.phone} errors={fe} />
-            <Text name="address" label="Address" value={data.address} full errors={fe} />
+            <Text name="address" label="Address" value={data.address} required full errors={fe} />
           </Section>
         )}
         <Section title="Assignment">

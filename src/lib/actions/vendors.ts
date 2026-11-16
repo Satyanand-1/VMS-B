@@ -6,7 +6,7 @@ import { requireSession, canSeeVendor, canSeePerson } from '../session';
 import { audit } from '../audit';
 import { checkFile, unstage } from '../files';
 import { encrypt } from '../crypto';
-import { addDocumentVersion, extraDocs, otherDocs, saveOtherDocs, uploadField } from '../domain/documents';
+import { addDocumentVersion, extraDocs, hasCurrentFile, otherDocs, saveOtherDocs, uploadField } from '../domain/documents';
 import { createLogin, loginNote, passwordFromForm, sendNewPassword } from '../domain/accounts';
 import { docDateErrors, phoneError } from '../validate';
 import type { FormState } from './auth';
@@ -61,6 +61,7 @@ export async function createVendorAction(_: FormState, raw: FormData): Promise<F
   const pw = passwordFromForm(form);
   if (pw.error) fe.pw_value = pw.error;
   await checkDocs(form, ['msa', 'po'], fe);
+  if (!uploadField(form, 'msa').file) fe.msa = 'Upload the MSA with its start and end date.';
   if (!fe.email && (await db().from('user_accounts').select('id').eq('email', v.email).maybeSingle()).data) fe.email = 'An account with this email already exists.';
   if (!fe.name && (await db().from('vendors').select('id').ilike('name', v.name).maybeSingle()).data) fe.name = 'A vendor with this name already exists.';
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
@@ -116,6 +117,7 @@ export async function updateVendorAction(_: FormState, raw: FormData): Promise<F
   if (termErr) fe.payment_term = termErr;
   const { all, others } = await otherDocs('vendor', id, VENDOR_DOCS);
   await checkDocs(form, ['msa', 'po', ...others.map((d) => `doc_${d.id}`)], fe, all);
+  if (!uploadField(form, 'msa').file && !(await hasCurrentFile('vendor', id, 'MSA'))) fe.msa = 'Upload the MSA with its start and end date.';
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
   must(await db().from('vendors').update(upd).eq('id', id), 'update vendor');
   await saveOtherDocs(s, 'vendor', id, before.name, form, others);

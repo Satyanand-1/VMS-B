@@ -257,8 +257,8 @@ export function MultiSelect({ name, label, options, selected = [], required, err
 
 /* ---------------- Document upload row ---------------- */
 // One row per document: name + Uploaded / Not uploaded | file control | dates (start/end, or audit period).
-export function UploadRow({ name, label, existing, dates, auditPeriod, locked, multiple, errors, note }: {
-  name: string; label?: string; existing?: { name: string; size?: string } | null;
+export function UploadRow({ name, label, existing, dates, auditPeriod, locked, multiple, errors, note, required }: {
+  name: string; label?: string; existing?: { name: string; size?: string } | null; required?: boolean;
   dates?: { start?: string | null; end?: string | null } | false; auditPeriod?: boolean; locked?: string; multiple?: boolean; errors?: Errors; note?: ReactNode;
 }) {
   const [files, setFiles] = useState<File[]>([]);
@@ -327,7 +327,7 @@ export function UploadRow({ name, label, existing, dates, auditPeriod, locked, m
   if (!label) return <div className="field doc-field doc-bare">{fileControl}{hasDates ? datesEl : null}{note ? <span className="person-sub">{note}</span> : null}</div>;
   return (
     <div className={`field doc-field ${hasDates ? 'has-dates' : ''}`}>
-      <div className="doc-name"><label>{label}</label>{state}{note ? <span className="person-sub">{note}</span> : null}</div>
+      <div className="doc-name"><label>{label}{required ? <span className="req">*</span> : null}</label>{state}{note ? <span className="person-sub">{note}</span> : null}</div>
       <div className="doc-file">{fileControl}</div>
       {hasDates ? <div className="doc-dates">{datesEl}</div> : null}
     </div>

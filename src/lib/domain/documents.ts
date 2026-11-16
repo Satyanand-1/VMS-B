@@ -53,6 +53,12 @@ export function auditPeriodOf(start: string | null, period: string | null) {
   return { label: `${fmt(start)} – ${fmt(end)} (${months} months)`, end };
 }
 
+// True when the document (e.g. a client's or vendor's MSA) already has an uploaded file.
+export async function hasCurrentFile(ownerKind: OwnerKind, ownerId: string, docType: string) {
+  const d = (await db().from('documents').select('id, document_versions(id)').eq('owner_kind', ownerKind).eq('owner_id', ownerId).eq('doc_type', docType).maybeSingle()).data as { document_versions: { id: string }[] } | null;
+  return !!d?.document_versions?.length;
+}
+
 // Documents the account manager added under "Other documents" (not the fixed ones); Edit forms show them as doc_<id> rows.
 export type OtherDoc = { id: string; doc_type: string; valid_from: string | null; valid_to: string | null };
 export async function otherDocs(ownerKind: 'vendor' | 'client', ownerId: string, fixed: string[]) {

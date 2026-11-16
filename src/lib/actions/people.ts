@@ -50,6 +50,7 @@ async function validate(f: ReturnType<typeof personFields>, type: PType, mode: '
   if (!f.role_title) fe.role_title = 'Enter the role.';
   if (!(f.hourly_rate > 0)) fe.hourly_rate = 'Enter the hourly rate.';
   if (type !== 'consultant' && !f.client_id) fe.client_id = 'Choose the client.';
+  if (type !== 'consultant' && !f.address) fe.address = 'Enter the address.';
   if (type !== 'consultant' && mode === 'add' && f.ssn.length !== 9) fe.ssn = 'Enter the 9-digit SSN.';
   const range = rangeError(f.start_date, f.end_date);
   if (range) fe.end_date = range;
