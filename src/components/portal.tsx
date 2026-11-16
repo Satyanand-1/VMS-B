@@ -1,7 +1,7 @@
 // Vendor / 1099 Invoices and W-2 Timesheets (shared): list with status tabs, Upload, View (with Replace) and Resubmit.
 import Link from 'next/link';
 import { Page } from './page';
-import { DataTable, Modal, ModalClose } from './client';
+import { DataTable, Filters, Modal, ModalClose } from './client';
 import { Badge, DetailCard, FileChip, FileLinks, Muted, PersonCell, Tabs, TextLink, ViewLink } from './ui';
 import { ReplaceFile, ResubmitForm, SubmitForm, type SubmitPerson } from './SubmitForms';
 import { db, must } from '@/lib/supabase/admin';
@@ -10,6 +10,17 @@ import { fmtDate, monthLong, monthShort, usd } from '@/lib/format';
 import type { Session } from '@/lib/session';
 
 const TABS = ['All', 'Approved', 'In Progress', 'Rejected'];
+const SORTS: { value: string; label: string; vendorOnly?: boolean }[] = [
+  { value: 'newest', label: 'Newest submitted first' },
+  { value: 'oldest', label: 'Oldest submitted first' },
+  { value: 'period_desc', label: 'Billable period (newest first)' },
+  { value: 'period_asc', label: 'Billable period (oldest first)' },
+  { value: 'consultant', label: 'Consultant (A–Z)', vendorOnly: true },
+  { value: 'client', label: 'Client (A–Z)', vendorOnly: true },
+  { value: 'status', label: 'Status' },
+  { value: 'amount_desc', label: 'Amount (highest first)' },
+  { value: 'hours_desc', label: 'Hours (highest first)' }
+];
 
 export async function SubmissionsPortal({ s, sp, path }: { s: Session; sp: Record<string, string>; path: string }) {
   const vendor = s.persona === 'vendor';
@@ -23,8 +34,24 @@ export async function SubmissionsPortal({ s, sp, path }: { s: Session; sp: Recor
   // What the submitter sees: Approved / Rejected, or In Progress (waiting for the client invoice or review).
   const shown = (x: Submission) => reviewStatus(x, cis.find((c) => c.person_id === x.person_id && c.period === x.period) || null);
   const tab = Math.min(Math.max(Number(sp.tab) || 0, 0), 3);
-  const filtered = subs.filter((x) => tab === 0 || shown(x) === TABS[tab]);
   const pName = Object.fromEntries(people.map((p) => [p.id, p]));
+  // Sort by (kept in the address with the tab).
+  const sorts = SORTS.filter((o) => vendor || !o.vendorOnly).filter((o) => !(w2 && o.value === 'amount_desc'));
+  const sort = sorts.some((o) => o.value === sp.sort) ? sp.sort : 'newest';
+  const by = (a: string | number, b: string | number) => (a < b ? -1 : a > b ? 1 : 0);
+  const cmp: Record<string, (a: Submission, b: Submission) => number> = {
+    newest: (a, b) => by(b.submitted_at || '', a.submitted_at || ''),
+    oldest: (a, b) => by(a.submitted_at || '', b.submitted_at || ''),
+    period_desc: (a, b) => by(b.period, a.period),
+    period_asc: (a, b) => by(a.period, b.period),
+    consultant: (a, b) => by((pName[a.person_id]?.full_name || '').toLowerCase(), (pName[b.person_id]?.full_name || '').toLowerCase()),
+    client: (a, b) => by((m.client[a.client_id]?.name || '').toLowerCase(), (m.client[b.client_id]?.name || '').toLowerCase()),
+    status: (a, b) => by(shown(a), shown(b)),
+    amount_desc: (a, b) => Number(b.amount || 0) - Number(a.amount || 0),
+    hours_desc: (a, b) => Number(b.hours) - Number(a.hours)
+  };
+  const filtered = subs.filter((x) => tab === 0 || shown(x) === TABS[tab])
+    .sort((a, b) => cmp[sort](a, b) || by(b.period, a.period) || by(b.submitted_at || '', a.submitted_at || ''));
   const actions = (x: Submission) => (
     <div key="act" className="row-actions">
       <ViewLink href={`${path}?m=view&id=${x.id}`} />
@@ -115,7 +142,8 @@ export async function SubmissionsPortal({ s, sp, path }: { s: Session; sp: Recor
     <Page s={s} title={w2 ? 'Timesheets' : 'Invoices'} flash={sp.flash}
       description={w2 ? 'Each timesheet is matched against the client invoice hours.' : vendor ? 'Invoices submitted for your consultants and their review result.' : 'Your submitted invoices and their review result.'}
       actions={<Link className="btn btn-primary" href={`${path}?m=new`} scroll={false}>{w2 ? 'Upload Timesheet' : 'Upload Invoice'}</Link>}>
-      <Tabs tabs={counts} active={tab} href={(i) => `${path}?tab=${i}`} />
+      <Filters filters={[{ label: 'Sort by', param: 'sort', value: sort, options: sorts.map((o) => ({ value: o.value, label: o.label })) }]} />
+      <Tabs tabs={counts} active={tab} href={(i) => `${path}?tab=${i}&sort=${sort}`} />
       <DataTable title={w2 ? 'Submission history' : vendor ? 'Consultant invoices' : 'Invoice history'} total={filtered.length} headers={headers} rows={rows}
         searchText={filtered.map((x) => `${x.ref} ${pName[x.person_id]?.full_name} ${monthLong(x.period)}`)} empty="No submissions in this view." />
       {modal}

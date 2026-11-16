@@ -14,6 +14,17 @@ import { DocPreview } from '@/components/DocPreview';
 const TABS = ['Vendor Consultants', 'W-2', '1099'];
 const TYPES: Person['type'][] = ['consultant', 'w2', 'w1099'];
 const STATUSES = ['All statuses', 'Approved', 'Rejected', 'In Progress'];
+const SORTS = [
+  { value: 'name', label: 'Name (A–Z)' },
+  { value: 'name_desc', label: 'Name (Z–A)' },
+  { value: 'client', label: 'Client (A–Z)' },
+  { value: 'vendor', label: 'Vendor (A–Z)' },
+  { value: 'status', label: 'Status' },
+  { value: 'submitted', label: 'Latest submitted first' },
+  { value: 'client_hours', label: 'Client hours (highest first)' },
+  { value: 'sub_hours', label: 'Vendor / resource hours (highest first)' },
+  { value: 'diff', label: 'Hours difference (largest first)' }
+];
 
 export default async function InvoiceManagementPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const s = await requireSession(['superadmin', 'accountmanager']);
@@ -41,8 +52,24 @@ export default async function InvoiceManagementPage({ searchParams }: { searchPa
   const all = people.map(rec);
   // Client and Status filters apply to the list and to the counts on the tabs.
   const filtered = all.filter((r) => (client === 'all' || r.p.client_id === client) && (status === 'All statuses' || r.st === status));
-  const list = filtered.filter((r) => r.p.type === TYPES[tab]);
-  const q = (over: Record<string, string | number>) => `/invoice-management?${new URLSearchParams({ client, status, period, tab: String(tab), ...Object.fromEntries(Object.entries(over).map(([k, v]) => [k, String(v)])) })}`;
+  // Sort by (kept in the address with the other filters).
+  const sort = SORTS.some((o) => o.value === sp.sort) ? sp.sort : 'name';
+  const by = (a: string | number, b: string | number) => (a < b ? -1 : a > b ? 1 : 0);
+  const name = (r: (typeof all)[number]) => r.p.full_name.toLowerCase();
+  const diff = (r: (typeof all)[number]) => (r.ci && r.sub ? Math.abs(Number(r.ci.hours) - Number(r.sub.hours)) : -1);
+  const cmp: Record<string, (a: (typeof all)[number], b: (typeof all)[number]) => number> = {
+    name: (a, b) => by(name(a), name(b)),
+    name_desc: (a, b) => by(name(b), name(a)),
+    client: (a, b) => by((m.client[a.p.client_id!]?.name || '').toLowerCase(), (m.client[b.p.client_id!]?.name || '').toLowerCase()),
+    vendor: (a, b) => by((a.p.vendor_id ? m.vendor[a.p.vendor_id]?.name : '') || '', (b.p.vendor_id ? m.vendor[b.p.vendor_id]?.name : '') || ''),
+    status: (a, b) => by(a.st, b.st),
+    client_hours: (a, b) => Number(b.ci?.hours ?? -1) - Number(a.ci?.hours ?? -1),
+    sub_hours: (a, b) => Number(b.sub?.hours ?? -1) - Number(a.sub?.hours ?? -1),
+    diff: (a, b) => diff(b) - diff(a),
+    submitted: (a, b) => by(b.sub?.submitted_at || '', a.sub?.submitted_at || '')
+  };
+  const list = filtered.filter((r) => r.p.type === TYPES[tab]).sort((a, b) => cmp[sort](a, b) || by(name(a), name(b)));
+  const q = (over: Record<string, string | number>) => `/invoice-management?${new URLSearchParams({ client, status, period, tab: String(tab), sort, ...Object.fromEntries(Object.entries(over).map(([k, v]) => [k, String(v)])) })}`;
   const hours = (h: number | null | undefined, other: number | null | undefined, key: string) => (h == null ? '—' : other != null && Number(h) !== Number(other) ? <Diff key={key}>{Number(h)}</Diff> : String(Number(h)));
   const rows = list.map(({ p, sub, ci, st, note }) => [
     <Link key="p" href={q({ m: 'review', person: p.id })} scroll={false} className="link-btn person-link"><PersonCell name={p.full_name} sub={p.vendor_id ? m.vendor[p.vendor_id]?.name : `${p.type === 'w2' ? 'W-2' : '1099'} resource`} /></Link>,
@@ -59,7 +86,8 @@ export default async function InvoiceManagementPage({ searchParams }: { searchPa
       <Filters filters={[
         { label: 'Client', param: 'client', value: client, options: [{ value: 'all', label: 'All clients' }, ...clients.map((c) => ({ value: c.id, label: c.name }))] },
         { label: 'Status', param: 'status', value: status, options: STATUSES.map((x) => ({ value: x, label: x })) },
-        { label: 'Billing period', param: 'period', value: period, options: months.map((x) => ({ value: x, label: monthLong(x) })) }
+        { label: 'Billing period', param: 'period', value: period, options: months.map((x) => ({ value: x, label: monthLong(x) })) },
+        { label: 'Sort by', param: 'sort', value: sort, options: SORTS.filter((o) => tab === 0 || o.value !== 'vendor').map((o) => ({ value: o.value, label: o.label })) }
       ]} />
       <div className="tabs">
         {TABS.map((t, i) => <Link key={t} href={q({ tab: i })} scroll={false} replace className={`tab ${i === tab ? 'active' : ''}`}>{t} ({filtered.filter((r) => r.p.type === TYPES[i]).length})</Link>)}
