@@ -17,7 +17,8 @@ const LOCK_MINUTES = 15;
 // AUTH-1, AUTH-2, AUTH-3, AUTH-7
 export async function signIn(_: FormState, form: FormData): Promise<FormState> {
   const email = String(form.get('email') || '').trim().toLowerCase();
-  const password = String(form.get('password') || '');
+  // Passwords never contain spaces, so spaces or line breaks picked up when copying from an email are removed.
+  const password = String(form.get('password') || '').replace(/\s+/g, '');
   if (!isValidEmail(email)) return { error: 'Enter a valid email address.' };
   if (!password) return { error: 'Enter your password.' };
   if (password.length > 200) return { error: 'Email or password is incorrect.' };
@@ -87,7 +88,7 @@ export async function setNewPassword(_: FormState, form: FormData): Promise<Form
 export async function changePassword(_: FormState, form: FormData): Promise<FormState> {
   const s = await loadSession();
   if (!s) redirect('/login');
-  const current = String(form.get('current') || '');
+  const current = String(form.get('current') || '').replace(/\s+/g, '');
   const pw = String(form.get('password') || '');
   const confirm = String(form.get('confirm') || '');
   const fieldErrors: Record<string, string> = {};

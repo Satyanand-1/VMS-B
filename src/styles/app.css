@@ -79,3 +79,8 @@ form > button.profile-menu-item { width: 100%; }
   width: 34px; height: 34px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted, #627d98); cursor: pointer; }
 .pw-eye:hover { background: var(--brand-100, #e6f0f8); color: var(--brand-700, #1f4e79); }
 .pw-eye:focus-visible { outline: 2px solid var(--brand-500, #2f6fa6); outline-offset: 1px; }
+
+/* Login details shown once: username / password in their own boxes so they copy exactly */
+.login-details-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; margin-top: 6px; font-size: 0.9rem; }
+.login-details .cred { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; background: #fff; border: 1px solid #ecd9a6; border-radius: 6px; padding: 3px 8px; user-select: all; }
+.login-details .cred-row { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }

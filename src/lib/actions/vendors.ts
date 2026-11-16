@@ -169,5 +169,5 @@ export async function sendNewPasswordAction(_: FormState, form: FormData): Promi
   let r;
   try { r = await sendNewPassword(s, accountId, pw.password!); } catch (e) { return { error: (e as Error).message }; }
   return { ok: r.sent ? `New password emailed to ${acc.email}. ${acc.full_name} must choose their own password at next sign-in.`
-    : `The email could not be sent (email service not set up). Share these login details yourself — Username: ${r.email} · Password: ${r.password}. ${acc.full_name} must choose their own password at next sign-in.` };
+    : `The email could not be sent (email service not set up). ${acc.full_name} must choose their own password at next sign-in. Share these login details yourself — Username: ${r.email}   Password: ${r.password}` };
 }

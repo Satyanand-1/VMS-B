@@ -9,9 +9,11 @@ import { audit } from '../audit';
 import { notifyUsers } from './notify';
 import type { Session } from '../session';
 
-// Random 14-character temporary password (letters, digits, symbols).
+// Random 14-character temporary password: upper and lower case letters and digits only.
+// No symbols (double-click selection and email clients split words at # % + = ! ?, so people copied only part of it)
+// and no look-alike characters (0/O, 1/l/I). 14 characters from 56 still gives about 81 bits of randomness.
 export function tempPassword() {
-  const sets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789', '#%+=!?'];
+  const sets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789'];
   const all = sets.join('');
   const chars = sets.map((s) => s[randomInt(s.length)]);
   while (chars.length < 14) chars.push(all[randomInt(all.length)]);
