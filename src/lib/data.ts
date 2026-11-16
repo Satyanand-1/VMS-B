@@ -120,22 +120,14 @@ export function reviewNote(sub: Submission | null, ci: ClientInvoice | null, typ
 }
 
 /* ---------------- misc ---------------- */
-// Billing period under review = the previous calendar month (Nov 13 → October).
+// Working billing period = the current calendar month, the same month every screen opens on
+// (Clients, Invoice Management, submit forms, dashboards); earlier months are chosen from the Month filter.
 export function currentPeriod(): string {
-  const [y, m] = todayISO().split('-').map(Number);
-  return new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 10);
-}
-export function billingPeriods(): string[] {
-  // The current reconciliation month and the two before it.
-  const [y, m] = currentPeriod().split('-').map(Number);
-  return [0, 1, 2].map((k) => {
-    const d = new Date(Date.UTC(y, m - 1 - k, 1));
-    return d.toISOString().slice(0, 10);
-  });
+  return `${todayISO().slice(0, 7)}-01`;
 }
 // Month filter for staff screens: this calendar month plus the three before it (so people who started this month show too).
 export function thisMonth(): string {
-  return `${todayISO().slice(0, 7)}-01`;
+  return currentPeriod();
 }
 export function monthOptions(): string[] {
   const [y, m] = thisMonth().split('-').map(Number);
