@@ -91,7 +91,7 @@ export async function updateClientAction(_: FormState, raw: FormData): Promise<F
   if (msa.file) { const p = await checkFile(msa.file); if (p) fe.msa = p; }
   else if (!(await hasCurrentFile('client', id, 'MSA'))) fe.msa = 'Upload the MSA document.';
   const { all, others } = await otherDocs('client', id, ['MSA']);
-  docDateErrors(form, ['msa', ...others.map((d) => `doc_${d.id}`)], fe, { dated: others.map((d) => `doc_${d.id}`), reserved: [...CLIENT_DOCS, ...all] });
+  docDateErrors(form, ['msa', ...others.map((d) => `doc_${d.id}`)], fe, { dated: [], reserved: [...CLIENT_DOCS, ...all] }); // other documents: dates optional
   for (const d of others) { const u = uploadField(form, `doc_${d.id}`); if (u.file) { const p = await checkFile(u.file); if (p) fe[`doc_${d.id}`] = p; } }
   for (const x of extraDocs(form)) if (x.file) { const p = await checkFile(x.file); if (p) fe.extra = p; }
   let ams: string[] = [];

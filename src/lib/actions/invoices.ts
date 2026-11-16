@@ -8,7 +8,7 @@ import { audit } from '../audit';
 import { sendEmail } from '../email';
 import { checkFile, storeFile, unstage } from '../files';
 import { monthLong, roundHalfUp } from '../format';
-import { monthOptions, type Submission, type Person } from '../data';
+import { approvalWindow, monthOptions, type Submission, type Person } from '../data';
 import { amOfPerson, notifyStaff } from '../domain/notify';
 import { likeExact, safeBack } from '../safe';
 import type { FormState } from './auth';
@@ -78,6 +78,34 @@ export async function reviewClientInvoiceAction(_: FormState, raw: FormData): Pr
   await notifyStaff(s, [await amOfPerson(personId)], { title: 'Client invoice uploaded', body: `${person.full_name} · ${monthLong(period)} · ${hours} h.`, link: `/invoice-management?m=review&person=${personId}&period=${period}` });
   revalidatePath('/invoice-management');
   redirect(`/invoice-management?m=review&person=${personId}&period=${period}`);
+}
+
+// Cancel Approval (Super Admin / the client's Account Manager), with a reason, until 2 days before the payment is due
+// (approval date + the payment term's net days). The submission goes back to In Progress: the client invoice can be
+// edited again and it is approved or rejected again. The vendor / resource is notified.
+export async function cancelApprovalAction(_: FormState, form: FormData): Promise<FormState> {
+  const s = await requireSession(['superadmin', 'accountmanager']);
+  const sub = (await db().from('submissions').select('*').eq('id', String(form.get('submission_id'))).maybeSingle()).data as Submission | null;
+  if (!sub || !canSeeClient(s, sub.client_id)) return { error: 'Submission not found.' };
+  if (sub.status !== 'approved') return { error: 'Only an approved invoice or timesheet can have its approval cancelled.' };
+  const reason = String(form.get('reason') || '').trim();
+  if (!reason) return { fieldErrors: { reason: 'Enter the reason for cancelling the approval.' } };
+  const person = must(await db().from('people').select('id,full_name,vendor_id,payment_term,type').eq('id', sub.person_id).single(), 'person') as Person;
+  const term = person.vendor_id ? ((await db().from('vendors').select('payment_term').eq('id', person.vendor_id).single()).data as { payment_term: string } | null)?.payment_term : person.payment_term;
+  const w = approvalWindow((sub as unknown as { reviewed_at: string | null }).reviewed_at, term);
+  if (!w.open) return { error: `The approval can no longer be cancelled: payment is due on ${w.due} (${term || 'Immediate'}); cancelling was possible until ${w.lastDay}.` };
+  must(await db().from('submissions').update({ status: 'in_progress', reviewed_by: null, reviewed_at: null, reject_reason: null }).eq('id', sub.id), 'cancel approval');
+  const what = `${sub.ref} (${person.full_name}, ${monthLong(sub.period)})`;
+  await audit(s, 'cancel_approval', 'submission', sub.id, `cancelled the approval of ${what} — ${reason}`);
+  await notifySubmitter(person, `${sub.ref}: approval cancelled`, `The approval of ${what} was cancelled: ${reason}\nIt is In Progress for review again.`);
+  await notifyStaff(s, [await amOfPerson(person.id)], { title: `${sub.ref}: approval cancelled`, body: `${person.full_name} · ${monthLong(sub.period)} — ${reason}`,
+    link: `/invoice-management?m=review&person=${person.id}&period=${sub.period}` });
+  revalidatePath('/invoice-management');
+  const back = safeBack(form.get('back'), '/invoice-management');
+  const q = new URLSearchParams(back.split('?')[1] || '');
+  q.set('m', 'review'); q.set('person', person.id); q.set('period', sub.period);
+  q.set('flash', `Approval cancelled|${what} is In Progress again. You can edit the client invoice and approve or reject it again.`);
+  redirect(`/invoice-management?${q.toString()}`);
 }
 
 // Correct a client invoice (hours and/or file) before the month is approved (Super Admin, or the client's Account Manager).

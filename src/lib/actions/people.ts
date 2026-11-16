@@ -61,7 +61,8 @@ async function validate(f: ReturnType<typeof personFields>, type: PType, mode: '
   if (range) fe.end_date = range;
   const ph = phoneError(f.phone);
   if (ph) fe.phone = ph;
-  if (badDate(f.start_date)) fe.start_date = 'Enter a valid date (MM/DD/YYYY, year 1900–2100).';
+  if (!f.start_date) fe.start_date = 'Enter the start date.'; // required for every consultant and resource; the end date is optional
+  else if (badDate(f.start_date)) fe.start_date = 'Enter a valid date (MM/DD/YYYY, year 1900–2100).';
   const du = durationError(f.duration);
   if (du) fe.duration = du;
   if (!f.work_location) fe.work_location = 'Type the location name and click Add, or choose Remote.';
@@ -162,7 +163,8 @@ export async function updatePersonAction(_: FormState, raw: FormData): Promise<F
   if (before.type !== 'consultant') { const err = await savePaymentTerm(f.payment_term || 'Net 10'); if (err) fe.payment_term = err; }
   const docs = must(await db().from('documents').select('id,doc_type,uploader_kind,no_dates,valid_from,valid_to').eq('owner_kind', 'person').eq('owner_id', id), 'docs') as { id: string; doc_type: string; uploader_kind: string; no_dates: boolean; valid_from: string | null; valid_to: string | null }[];
   await checkUploads(form, docs.map((d) => `doc_${d.id}`), fe, {
-    dated: docs.filter((d) => d.uploader_kind === 'staff' && !d.no_dates && d.doc_type !== 'Audit report').map((d) => `doc_${d.id}`),
+    // Standard documents need their dates with a new file; documents added under "Other documents" do not.
+    dated: docs.filter((d) => d.uploader_kind === 'staff' && !d.no_dates && d.doc_type !== 'Audit report' && STAFF_DOCS[before.type].some((x) => x.name === d.doc_type)).map((d) => `doc_${d.id}`),
     reserved: [...reservedNames(before.type), ...docs.map((d) => d.doc_type)]
   });
   for (const d of docs) {

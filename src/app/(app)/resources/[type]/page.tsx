@@ -34,7 +34,7 @@ export default async function ResourcesPage({ params, searchParams }: { params: 
       <div key="a" className="row-actions">
         <ViewLink href={`${base}?m=view-person&id=${p.id}`} />
         <EditLink href={`${base}?m=edit-person&id=${p.id}`} />
-        <TextLink href={`${base}/${p.id}`}>Invoices &amp; Timesheets</TextLink>
+        <TextLink href={`${base}/${p.id}`}>{type === 'w2' ? 'Timesheets' : 'Invoices & Timesheets'}</TextLink>
       </div>
     ];
   });

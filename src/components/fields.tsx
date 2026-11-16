@@ -153,13 +153,14 @@ export function DateField({ name, label, value, required, errors, min, onChange 
 }
 
 // Start + end date pair: the end date cannot be before the start date.
-export function DateRange({ startName, endName, startLabel = 'Start date', endLabel = 'End date', start, end, required, errors }: {
-  startName: string; endName: string; startLabel?: string; endLabel?: string; start?: string | null; end?: string | null; required?: boolean; errors?: Errors;
+// required: both dates; startRequired: only the start date (e.g. a consultant's or resource's assignment).
+export function DateRange({ startName, endName, startLabel = 'Start date', endLabel = 'End date', start, end, required, startRequired, errors }: {
+  startName: string; endName: string; startLabel?: string; endLabel?: string; start?: string | null; end?: string | null; required?: boolean; startRequired?: boolean; errors?: Errors;
 }) {
   const [from, setFrom] = useState(start || '');
   return (
     <>
-      <DateField name={startName} label={startLabel} value={start} required={required} errors={errors} onChange={setFrom} />
+      <DateField name={startName} label={startLabel} value={start} required={required || startRequired} errors={errors} onChange={setFrom} />
       <DateField name={endName} label={endLabel} value={end} required={required} errors={errors} min={from || null} />
     </>
   );
@@ -178,8 +179,8 @@ function ExtraValidity() {
   const [from, setFrom] = useState('');
   return (
     <div className="validity-row">
-      <div className="validity-cell"><span className="expiry-label">Start date</span><DateInput name="extra_start" onChange={setFrom} label="Start date" /></div>
-      <div className="validity-cell"><span className="expiry-label">End date</span><DateInput name="extra_end" min={from || null} label="End date" /></div>
+      <div className="validity-cell"><span className="expiry-label">Start date (optional)</span><DateInput name="extra_start" onChange={setFrom} label="Start date" /></div>
+      <div className="validity-cell"><span className="expiry-label">End date (optional)</span><DateInput name="extra_end" min={from || null} label="End date" /></div>
     </div>
   );
 }
@@ -214,12 +215,13 @@ export function WorkLocation({ name = 'work_location', value, errors }: { name?:
   const [places, setPlaces] = useState<string[]>(value && value !== 'Remote' ? [value] : []);
   const [choice, setChoice] = useState(value || 'Remote');
   const [typed, setTyped] = useState('');
+  // Only the current location is listed: adding a new one replaces any location entered before.
   const add = () => {
     const t = typed.trim();
     if (!t) return;
-    const known = ['Remote', ...places].find((p) => p.toLowerCase() === t.toLowerCase());
-    if (!known) setPlaces((p) => [...p, t]);
-    setChoice(known || t); setTyped('');
+    if (t.toLowerCase() === 'remote') { setChoice('Remote'); setTyped(''); return; }
+    setPlaces([t]);
+    setChoice(t); setTyped('');
   };
   return (
     <Field label="Work location" error={errors?.[name]} htmlFor={`f-${name}`}>

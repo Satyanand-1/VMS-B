@@ -33,7 +33,7 @@ const hasFile = (form: FormData, n: string) => form.getAll(n).some((v) => v inst
 // Document rows (<name>, <name>__start, <name>__end):
 //  - dates must be valid and the end date not before the start date;
 //  - `dated` rows that get a file also need both dates.
-// "Other documents" rows need a name that is not already used, a file, and (when a file is chosen) both dates.
+// "Other documents" rows need a name that is not already used and a file; their dates are optional.
 export function docDateErrors(form: FormData, names: string[], fe: Record<string, string>, opts: { dated?: string[]; reserved?: string[] } = {}) {
   for (const n of names) {
     const start = String(form.get(`${n}__start`) || '');
@@ -49,7 +49,7 @@ export function docDateErrors(form: FormData, names: string[], fe: Record<string
     if (x.file && !x.name) fe.extra = 'Enter a name for each other document.';
     else if (x.name && !x.file) fe.extra = `Choose a file for “${x.name}”, or remove the row.`;
     else if (reserved.includes(key) || seen.has(key)) fe.extra = `A document named “${x.name}” already exists. Use a different name.`;
-    else if (x.file && (!x.start || !x.end)) fe.extra = `Enter the start and end date for “${x.name}”.`;
+    // Dates are optional for "Other documents"; when both are given the end date cannot be before the start date.
     else { const e = rangeError(x.start, x.end); if (e) fe.extra = e; }
     seen.add(key);
   }

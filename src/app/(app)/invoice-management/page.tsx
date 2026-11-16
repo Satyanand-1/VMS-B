@@ -3,10 +3,12 @@ import { Page } from '@/components/page';
 import { DataTable, Filters, Modal } from '@/components/client';
 import { Badge, Diff, Muted, PersonCell } from '@/components/ui';
 import { requireSession, canSeePerson, type Session } from '@/lib/session';
-import { activeSubmission, monthOptions, clientInvoicesFor, clientsInScope, currentPeriod, getPerson, maps, peopleInScope, reviewNote, reviewStatus, submissionsFor,
+import { activeSubmission, approvalWindow, monthOptions, clientInvoicesFor, clientsInScope, currentPeriod, getPerson, maps, peopleInScope, reviewNote, reviewStatus, submissionsFor,
   type ClientInvoice, type Person, type Submission } from '@/lib/data';
 import { monthLong } from '@/lib/format';
-import { EditClientInvoice, ReviewActions, ReviewClientInvoice } from './ReviewActions';
+import { CancelApproval, EditClientInvoice, ReviewActions, ReviewClientInvoice } from './ReviewActions';
+import { db } from '@/lib/supabase/admin';
+import { fmtDate } from '@/lib/format';
 import { DocPreview } from '@/components/DocPreview';
 
 const TABS = ['Vendor Consultants', 'W-2', '1099'];
@@ -83,6 +85,11 @@ async function reviewModal(s: Session, personId: string, period: string, closeHr
   const docFile = sub ? (p.type === 'w2' ? { key: `st-${sub.id}`, name: sub.timesheet_name } : { key: `si-${sub.id}`, name: sub.invoice_name }) : null;
   // The client invoice can be corrected (hours and/or file) until the month is approved.
   const canEditCi = !!ci && sub?.status !== 'approved';
+  // Approved: payment is due net days after approval; the approval can be cancelled until 2 days before that.
+  const term = p.vendor_id ? m.vendor[p.vendor_id]?.payment_term : p.payment_term;
+  const win = sub?.status === 'approved' ? approvalWindow(sub.reviewed_at, term) : null;
+  const lastCancel = sub ? ((await db().from('audit_log').select('at,actor_name,summary').eq('entity', 'submission').eq('entity_id', sub.id).eq('action', 'cancel_approval')
+    .order('at', { ascending: false }).limit(1)).data?.[0] as { at: string; actor_name: string; summary: string } | undefined) : undefined;
   return (
     <Modal title={`Review · ${p.full_name}`} description={`Compare the client invoice with the ${docLabel.toLowerCase()} and approve or reject.`} closeHref={closeHref} wide>
       <div className="modal-content">
@@ -119,7 +126,15 @@ async function reviewModal(s: Session, personId: string, period: string, closeHr
             : 'Both invoices are needed before this can be reviewed. Status stays In Progress.'}
         </div>
         {both && sub!.status === 'in_progress' ? <ReviewActions submissionId={sub!.id} back={closeHref} /> : null}
-        {both && sub!.status !== 'in_progress' ? <Muted>{sub!.status === 'approved' ? 'Approved — no further action.' : `Rejected — the ${who} corrects and resubmits it.`}</Muted> : null}
+        {both && sub!.status === 'rejected' ? <Muted>{`Rejected — the ${who} corrects and resubmits it.`}</Muted> : null}
+        {sub?.status === 'approved' ? (
+          <div className="approval-box">
+            <Muted>{`Approved on ${fmtDate(sub.reviewed_at)} · payment due ${win!.due} (${term || 'Immediate'}).`}</Muted>
+            {win!.open ? <CancelApproval submissionId={sub.id} back={closeHref} lastDay={win!.lastDay} />
+              : <Muted>{`The approval can no longer be cancelled (it was possible until ${win!.lastDay}, 2 days before the payment is due).`}</Muted>}
+          </div>
+        ) : null}
+        {lastCancel ? <div className="person-sub">Approval cancelled on {fmtDate(lastCancel.at)} by {lastCancel.actor_name}: {lastCancel.summary.split(' — ').slice(1).join(' — ')}</div> : null}
       </div>
     </Modal>
   );

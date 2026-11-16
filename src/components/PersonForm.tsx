@@ -62,7 +62,7 @@ export function PersonForm({ mode, type, data, vendor, clients, terms, amOptions
           <Text name="role_title" label="Role" value={data.role_title} required errors={fe} />
           <Text name="hourly_rate" label="Hourly rate (USD)" value={data.hourly_rate ?? ''} required errors={fe} />
           <WorkLocation value={data.work_location} errors={fe} />
-          <DateRange startName="start_date" endName="end_date" start={data.start_date} end={data.end_date} errors={fe} />
+          <DateRange startName="start_date" endName="end_date" start={data.start_date} end={data.end_date} startRequired errors={fe} />
           {consultant
             ? <Text name="payment_term_ro" label="Payment term" value={vendor?.payment_term || data.payment_term} readOnly lock="From vendor · set by account manager" />
             : <PaymentTerm terms={terms} value={data.payment_term} errors={fe} />}

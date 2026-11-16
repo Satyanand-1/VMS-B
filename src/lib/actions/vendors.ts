@@ -20,8 +20,8 @@ const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${ti
 
 const VENDOR_DOCS = ['MSA', 'PO', 'W-9', 'COI', 'ACH form'];
 async function checkDocs(form: FormData, names: string[], fe: Record<string, string>, reserved: string[] = []) {
-  // Every vendor document the account manager uploads has a start and end date.
-  docDateErrors(form, names, fe, { dated: names, reserved: [...VENDOR_DOCS, ...reserved] });
+  // MSA and PO need a start and end date with their file; documents added under "Other documents" do not.
+  docDateErrors(form, names, fe, { dated: names.filter((n) => n === 'msa' || n === 'po'), reserved: [...VENDOR_DOCS, ...reserved] });
   for (const n of names) {
     const u = uploadField(form, n);
     if (u.file) { const p = await checkFile(u.file); if (p) fe[n] = p; }

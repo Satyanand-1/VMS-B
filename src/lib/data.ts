@@ -1,6 +1,6 @@
 import 'server-only';
 import { db, must } from './supabase/admin';
-import { daysBetween, fmtDate, todayISO } from './format';
+import { addDays, daysBetween, fmtDate, todayISO } from './format';
 import { canSeePerson, type Session } from './session';
 import { fmtSize } from './files';
 
@@ -132,6 +132,16 @@ export function thisMonth(): string {
 export function monthOptions(): string[] {
   const [y, m] = thisMonth().split('-').map(Number);
   return [0, 1, 2, 3].map((k) => new Date(Date.UTC(y, m - 1 - k, 1)).toISOString().slice(0, 10));
+}
+// Cancel Approval window: payment is due "net days" after the approval (Net 10 → 10 days, Immediate → 0);
+// an approval can be cancelled until 2 days before that due date (end of that day).
+export function approvalWindow(approvedAt: string | null | undefined, term: string | null | undefined) {
+  const net = /^Net\s+(\d+)/i.exec(term || '')?.[1];
+  const days = net ? Number(net) : 0;
+  const approved = (approvedAt || todayISO()).slice(0, 10);
+  const due = addDays(approved, days);
+  const lastDay = addDays(due, -2);
+  return { open: todayISO() <= lastDay && lastDay >= approved, due: fmtDate(due), lastDay: fmtDate(lastDay), days };
 }
 export function dueDate(period: string) {
   const [y, m] = period.split('-').map(Number);

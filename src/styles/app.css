@@ -110,3 +110,4 @@ form > button.profile-menu-item { width: 100%; }
 .review-doc-title { flex-wrap: wrap; }
 .review-doc-title .ci-edit { flex-basis: 100%; }
 .profile-documents { margin-top: 20px; scroll-margin-top: 16px; }
+.approval-box { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
