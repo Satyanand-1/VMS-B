@@ -1,5 +1,5 @@
 'use client';
-import { startTransition, useActionState, useState, type FormEvent } from 'react';
+import { startTransition, useActionState, useMemo, useState, type FormEvent } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import type { FormState } from '@/lib/actions/auth';
 import { stageUploadAction } from '@/lib/actions/uploads';
@@ -95,8 +95,35 @@ function checkEmails(form: HTMLFormElement): number {
 
 // Submits a server action from onSubmit, so React does not clear the form after a validation error
 // (passing the action to <form action> resets uncontrolled fields). Includes the clicked button's name/value.
+// If the server answers a save with something unexpected (the session ended, the app was redeployed while the form was
+// open, or the request was cut off), the page must not crash: the form stays as it is and a clear message is shown.
+// Redirects and not-found signals from the server are passed through unchanged (that is how a successful save navigates).
+const SAVE_UNCONFIRMED = 'The server did not confirm this save (the connection was interrupted or the app was just updated). Your entries are still here. Refresh the page to check whether it was saved before trying again.';
+async function sessionEnded(): Promise<boolean> {
+  try {
+    const r = await fetch('/api/session/ping', { cache: 'no-store', credentials: 'same-origin', redirect: 'manual' });
+    return r.status === 401 || r.type === 'opaqueredirect' || r.status === 307 || r.status === 302;
+  } catch { return false; }
+}
+function guard(action: (state: FormState, form: FormData) => Promise<FormState>) {
+  return async (prev: FormState, fd: FormData): Promise<FormState> => {
+    try {
+      return await action(prev, fd);
+    } catch (e) {
+      const digest = String((e as { digest?: unknown })?.digest ?? '');
+      if (digest.startsWith('NEXT_REDIRECT') || digest.startsWith('NEXT_HTTP_ERROR_FALLBACK') || digest === 'NEXT_NOT_FOUND') throw e;
+      if (await sessionEnded()) {
+        window.location.href = `/login?notice=${encodeURIComponent('Your session ended before the form was saved. Please sign in again and repeat the change.')}`;
+        return prev;
+      }
+      return { ...(prev || {}), fieldErrors: prev?.fieldErrors, error: SAVE_UNCONFIRMED };
+    }
+  };
+}
+
 export function useFormAction(action: (state: FormState, form: FormData) => Promise<FormState>) {
-  const [state, dispatch, pending] = useActionState<FormState, FormData>(action, undefined);
+  const safe = useMemo(() => guard(action), [action]);
+  const [state, dispatch, pending] = useActionState<FormState, FormData>(safe, undefined);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
