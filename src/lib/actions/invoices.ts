@@ -60,8 +60,10 @@ export async function reviewClientInvoiceAction(_: FormState, raw: FormData): Pr
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const personId = String(form.get('person_id'));
   const period = String(form.get('period'));
-  const person = must(await db().from('people').select('id,full_name,client_id,vendor_id').eq('id', personId).single(), 'person') as Person;
+  const person = must(await db().from('people').select('id,full_name,client_id,vendor_id,start_date,end_date').eq('id', personId).single(), 'person') as Person;
   if (!person.client_id || !canSeeClient(s, person.client_id)) return { error: 'You can upload client invoices only for your own clients.' };
+  if ((person.start_date && person.start_date.slice(0, 7) > period.slice(0, 7)) || (person.end_date && person.end_date.slice(0, 7) < period.slice(0, 7)))
+    return { error: `${monthLong(period)} is outside ${person.full_name}'s assignment dates.` };
   const f = form.get('file');
   const file = f instanceof File && f.size > 0 ? f : null;
   const hours = Number(form.get('hours'));

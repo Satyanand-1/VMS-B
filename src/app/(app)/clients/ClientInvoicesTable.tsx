@@ -6,14 +6,15 @@ import { FileChip } from '@/components/ui';
 import { fileProblem } from '@/components/fields';
 import { saveClientInvoicesAction } from '@/lib/actions/clients';
 
-export type CiRow = { personId: string; cells: ReactNode[]; uploaded: boolean; fileCell?: ReactNode; hours?: string; search: string };
+// locked: nothing to upload for this month (the person starts later or has ended); fileCell / hours carry the note.
+export type CiRow = { personId: string; cells: ReactNode[]; uploaded: boolean; fileCell?: ReactNode; hours?: string; search: string; locked?: boolean };
 
 // The Clients page list: for each Not Uploaded person, choose the client invoice and type its hours; one Save for all (CL-3).
 export function ClientInvoicesTable({ title, chip, headers, rows, period, back, editable }: {
   title: string; chip: string; headers: string[]; rows: CiRow[]; period: string; back: string; editable: boolean;
 }) {
   const [state, action, pending] = useFormAction(saveClientInvoicesAction);
-  const missing = rows.filter((r) => !r.uploaded).length;
+  const missing = rows.filter((r) => !r.uploaded && !r.locked).length;
   // Columns: person [, client], Client Invoice, Client Billable Hours, Status
   const built = rows.map((r) => {
     const err = state?.fieldErrors?.[r.personId];
@@ -21,8 +22,8 @@ export function ClientInvoicesTable({ title, chip, headers, rows, period, back, 
     const status = rest.pop();
     return [
       person, ...rest,
-      r.uploaded ? r.fileCell : editable ? <CellUpload name={`file_${r.personId}`} error={err} /> : <span className="person-sub inline">Not uploaded</span>,
-      r.uploaded ? r.hours : editable ? <input className="cell-input ci-h" name={`hours_${r.personId}`} inputMode="decimal" placeholder="0" aria-label="Client billable hours" /> : '—',
+      r.uploaded || r.locked ? r.fileCell : editable ? <CellUpload name={`file_${r.personId}`} error={err} /> : <span className="person-sub inline">Not uploaded</span>,
+      r.uploaded || r.locked ? r.hours : editable ? <input className="cell-input ci-h" name={`hours_${r.personId}`} inputMode="decimal" placeholder="0" aria-label="Client billable hours" /> : '—',
       status
     ];
   });

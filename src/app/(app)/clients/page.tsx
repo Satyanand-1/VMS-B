@@ -26,29 +26,33 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   const all = clientId === 'all';
   const m = await maps();
 
-  // People working on the client(s) in that month (consultants mapped to a client, W-2 and 1099 resources).
-  const [y, mo] = period.split('-').map(Number);
-  const monthEnd = new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
-  const people = (await peopleInScope(s)).filter((p) => p.client_id && (all ? clients.some((c) => c.id === p.client_id) : p.client_id === clientId)
-    && (!p.start_date || p.start_date <= monthEnd) && (!p.end_date || p.end_date >= period));
+  // Everyone assigned to the client(s) is listed (consultants mapped to a client, W-2 and 1099 resources).
+  // A client invoice is due only for a month inside the person's start and end dates; outside it the row says why.
+  const people = (await peopleInScope(s)).filter((p) => p.client_id && (all ? clients.some((c) => c.id === p.client_id) : p.client_id === clientId));
+  const notDue = (p: Person) => (p.start_date && p.start_date.slice(0, 7) > period.slice(0, 7) ? `Starts ${fmtDate(p.start_date)}`
+    : p.end_date && p.end_date.slice(0, 7) < period.slice(0, 7) ? `Ended ${fmtDate(p.end_date)}` : null);
   const cis = await clientInvoicesFor(people.map((p) => p.id), [period]);
   const ciOf = (pid: string) => cis.find((c) => c.person_id === pid) || null;
   // The Status filter (All / Uploaded / Not uploaded) applies to the list and to the counts on the tabs.
-  const matchesStatus = (p: Person) => status === 'All' || (status === 'Uploaded') === !!ciOf(p.id);
+  // "Not uploaded" means due this month but missing; people not due this month appear under All.
+  const matchesStatus = (p: Person) => status === 'All' || (status === 'Uploaded' ? !!ciOf(p.id) : !ciOf(p.id) && !notDue(p));
   const shown = people.filter((p) => p.type === TAB_TYPES[tab] && matchesStatus(p));
-  const missing = shown.filter((p) => !ciOf(p.id)).length;
+  const missing = shown.filter((p) => !ciOf(p.id) && !notDue(p)).length;
 
   const rows: CiRow[] = shown.map((p) => {
     const ci = ciOf(p.id);
+    const why = ci ? null : notDue(p);
     return {
       personId: p.id, uploaded: !!ci, search: p.full_name,
       cells: [
         <PersonCell key="p" name={p.full_name} sub={p.vendor_id ? m.vendor[p.vendor_id]?.name : `${p.type === 'w2' ? 'W-2' : '1099'} resource`} />,
         ...(all ? [m.client[p.client_id!]?.name] : []),
-        <Badge key="s" text={ci ? 'Uploaded' : 'Not Uploaded'} />
+        why ? <span key="s"><Badge text="Not Due" /><span className="person-sub">{why}</span></span> : <Badge key="s" text={ci ? 'Uploaded' : 'Not Uploaded'} />
       ],
-      fileCell: ci ? <div className="doc-cell"><FileChip name={ci.file_name} /><FileLinks fileKey={`ci-${ci.id}`} name={ci.file_name} download={false} /></div> : undefined,
-      hours: ci ? String(Number(ci.hours)) : undefined
+      fileCell: ci ? <div className="doc-cell"><FileChip name={ci.file_name} /><FileLinks fileKey={`ci-${ci.id}`} name={ci.file_name} download={false} /></div>
+        : why ? <span className="person-sub inline">No client invoice for {monthLong(period)}</span> : undefined,
+      hours: ci ? String(Number(ci.hours)) : why ? '—' : undefined,
+      locked: !!why
     };
   });
   const base = (over: Record<string, string | number>) => {
