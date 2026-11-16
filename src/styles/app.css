@@ -84,3 +84,11 @@ form > button.profile-menu-item { width: 100%; }
 .login-details-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; margin-top: 6px; font-size: 0.9rem; }
 .login-details .cred { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; background: #fff; border: 1px solid #ecd9a6; border-radius: 6px; padding: 3px 8px; user-select: all; }
 .login-details .cred-row { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* 15-minute session limit: warning shown in the last minute */
+.idle-warning { position: fixed; z-index: 2000; right: 24px; bottom: 24px; max-width: 420px; display: flex; gap: 16px; align-items: center;
+  background: #fff; border: 1px solid var(--line, #d9e2ec); border-left: 4px solid #d97706; border-radius: 12px; padding: 14px 16px;
+  box-shadow: 0 12px 32px rgba(16, 42, 67, 0.18); }
+.idle-warning .alert-text { color: var(--muted, #627d98); font-size: 0.88rem; margin-top: 2px; }
+.idle-warning .btn { white-space: nowrap; }
+@media (max-width: 640px) { .idle-warning { left: 16px; right: 16px; bottom: 16px; max-width: none; } }

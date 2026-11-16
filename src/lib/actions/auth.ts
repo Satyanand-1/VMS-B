@@ -2,6 +2,7 @@
 import { passwordProblem } from '../password';
 import { isValidEmail } from '../email-format';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { authClient } from '../supabase/server';
 import { db } from '../supabase/admin';
@@ -57,6 +58,7 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
   }
   await db().from('user_accounts').update({ last_login_at: new Date().toISOString() }).eq('id', account.id);
   await audit({ account }, 'login', 'session', account.id, 'signed in (password)');
+  (await cookies()).delete('vms_seen'); // a new session starts its 15-minute activity clock fresh
   redirect(account.must_change_password ? '/login/set-password' : '/dashboard');
 }
 
@@ -128,5 +130,6 @@ export async function signOut() {
   const supabase = await authClient();
   await supabase.auth.signOut();
   if (s) await audit(s, 'logout', 'session', s.account.id, 'signed out');
+  (await cookies()).delete('vms_seen');
   redirect('/login');
 }
