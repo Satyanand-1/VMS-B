@@ -36,7 +36,7 @@ export function PasswordBox({ info, staff }: { info: { accountId: string; email:
     <div className="pw-status">
       <div className="pw-line">{sent ? <><Badge text="Pending" /> New password set; not changed by the user yet</> : <><Badge text={info.badge} /> {info.text}</>}</div>
       {sent ? <div className="pw-sent">{state.ok}</div> : null}
-      {state?.error ? <div className="field-error">{state.error}</div> : null}
+      {state?.error ? <div className="field-error srv">{state.error}</div> : null}
       <div className="pw-meta">Username: <b>{info.email}</b>{staff ? '' : ' · passwords expire every 30 days'}</div>
       {!open ? (
         <button type="button" className="btn btn-secondary btn-sm send-pw" onClick={() => setOpen(true)}>Send new password</button>

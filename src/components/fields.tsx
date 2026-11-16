@@ -34,7 +34,8 @@ export function Field({ label, required, lock, note, full, error, children, html
       {label ? <label htmlFor={htmlFor}>{label}{required ? <span className="req">*</span> : null}{lock ? <span className="lock">{lock}</span> : null}</label> : null}
       {children}
       {note ? <span className="person-sub">{note}</span> : null}
-      {error ? <span className="field-error">{error}</span> : null}
+      {/* "srv": an error from the last save; it hides as soon as the user changes this field (see useFormAction). */}
+      {error ? <span className="field-error srv">{error}</span> : null}
     </div>
   );
 }
@@ -282,7 +283,7 @@ export function UploadRow({ name, label, existing, dates, auditPeriod, locked, m
   ) : hasFile ? (
     <>
       <div className="upload-done"><FileChip name={existing!.name} size={existing!.size} /><button type="button" className="link-btn" onClick={() => input.current?.click()}>Replace</button></div>
-      {err || errors?.[name] ? <span className="field-error">{err || errors?.[name]}</span> : null}
+      {err || errors?.[name] ? <span className={`field-error${err ? '' : ' srv'}`}>{err || errors?.[name]}</span> : null}
     </>
   ) : (
     <>
@@ -298,7 +299,7 @@ export function UploadRow({ name, label, existing, dates, auditPeriod, locked, m
         {files.length ? <button type="button" className="link-btn" onClick={() => input.current?.click()}>Change</button> : null}
         {replace && existing ? <button type="button" className="link-btn" onClick={keep}>Keep {existing.name}</button> : null}
       </div>
-      {err || errors?.[name] ? <span className="field-error">{err || errors?.[name]}</span> : null}
+      {err || errors?.[name] ? <span className={`field-error${err ? '' : ' srv'}`}>{err || errors?.[name]}</span> : null}
     </>
   );
   // The input stays at a fixed position so React keeps the chosen file when the view switches to "replacing".
@@ -405,7 +406,7 @@ export function PasswordChoice({ errors, compact }: { errors?: Errors; compact?:
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShow((v) => !v)}>{show ? 'Hide' : 'Show'}</button>
         </div>
       ) : <span className="person-sub">A random 14-character password is created.</span>}
-      {errors?.pw_value ? <span className="field-error">{errors.pw_value}</span> : null}
+      {errors?.pw_value ? <span className="field-error srv">{errors.pw_value}</span> : null}
       <span className="person-sub">The username (their email) and this password are emailed. They must choose their own password at first sign-in.</span>
     </div>
   );

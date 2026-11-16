@@ -9,6 +9,7 @@ import { encrypt } from '../crypto';
 import { addDocumentVersion, extraDocs, hasCurrentFile, otherDocs, saveOtherDocs, uploadField } from '../domain/documents';
 import { createLogin, loginNote, passwordFromForm, sendNewPassword } from '../domain/accounts';
 import { docDateErrors, phoneError } from '../validate';
+import { amOfVendor, notifyStaff, notifyUsers } from '../domain/notify';
 import type { FormState } from './auth';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,7 +57,7 @@ export async function createVendorAction(_: FormState, raw: FormData): Promise<F
   if (!v.state) fe.state_of_incorporation = 'Choose the state of incorporation.';
   if (!v.signatory) fe.signatory_name = 'Enter the authorized signatory name.';
   if (!v.am) fe.account_manager_id = 'Choose the account manager.';
-  const termErr = v.term ? await savePaymentTerm(v.term) : 'Choose the payment term.';
+  const termErr = v.term ? await savePaymentTerm(v.term) : 'Choose the payment term, or type a custom term (Net + days).';
   if (termErr) fe.payment_term = termErr;
   const pw = passwordFromForm(form);
   if (pw.error) fe.pw_value = pw.error;
@@ -84,6 +85,7 @@ export async function createVendorAction(_: FormState, raw: FormData): Promise<F
   ]);
   for (const x of extraDocs(form)) if (x.file && x.name) await addDocumentVersion(s, 'vendor', row.id, x.name, x.file, { validFrom: x.start, validTo: x.end, ownerLabel: v.name });
   await audit(s, 'create', 'vendor', row.id, `created vendor ${v.name}`, null, { ...v, ein: undefined });
+  await notifyStaff(s, [v.am], { title: `New vendor: ${v.name}`, body: `Account manager: ${v.am === s.account.id ? 'you' : 'assigned by the Super Admin'}. Login details were sent to ${v.email}.`, link: `/vendors?m=view-vendor&id=${row.id}` });
   let login;
   try { login = await createLogin(s, { email: v.email, name: v.signatory, role: 'vendor', password: pw.password!, vendorId: row.id }); }
   catch (e) { return { error: (e as Error).message }; }
@@ -113,7 +115,8 @@ export async function updateVendorAction(_: FormState, raw: FormData): Promise<F
   const sph = phoneError(upd.signatory_phone as string | null);
   if (sph) fe.signatory_phone = sph;
   if (!upd.signatory_name) fe.signatory_name = 'Enter the authorized signatory name.';
-  const termErr = await savePaymentTerm(String(upd.payment_term));
+  if (!upd.state_of_incorporation) fe.state_of_incorporation = 'Choose the state of incorporation.';
+  const termErr = upd.payment_term ? await savePaymentTerm(String(upd.payment_term)) : 'Choose the payment term, or type a custom term (Net + days).';
   if (termErr) fe.payment_term = termErr;
   const { all, others } = await otherDocs('vendor', id, VENDOR_DOCS);
   await checkDocs(form, ['msa', 'po', ...others.map((d) => `doc_${d.id}`)], fe, all);
@@ -128,6 +131,8 @@ export async function updateVendorAction(_: FormState, raw: FormData): Promise<F
   }
   for (const x of extraDocs(form)) if (x.file && x.name) await addDocumentVersion(s, 'vendor', id, x.name, x.file, { validFrom: x.start, validTo: x.end, ownerLabel: before.name });
   await audit(s, 'update', 'vendor', id, `updated vendor ${before.name}`, before, upd);
+  if (upd.account_manager_id && upd.account_manager_id !== before.account_manager_id)
+    await notifyUsers([upd.account_manager_id as string], { title: `Vendor assigned to you: ${before.name}`, body: 'You are now the account manager for this vendor and its consultants.', link: `/vendors?m=view-vendor&id=${id}` }, s.account.id);
   revalidatePath('/vendors');
   redirect(`/vendors?${flash('Vendor updated', `${before.name} was saved.`)}`);
 }
@@ -148,6 +153,8 @@ export async function updateCompanyProfileAction(_: FormState, form: FormData): 
   const before = must(await db().from('vendors').select('address,phone,signatory_name,signatory_phone').eq('id', id).single(), 'vendor');
   must(await db().from('vendors').update(upd).eq('id', id), 'update profile');
   await audit(s, 'update', 'vendor', id, 'updated the company profile', before, upd);
+  const vname = ((await db().from('vendors').select('name').eq('id', id).single()).data as { name: string } | null)?.name;
+  await notifyStaff(s, [await amOfVendor(id)], { title: `${vname} updated its company profile`, body: 'Address, phone or authorized signatory changed.', link: `/vendors?m=view-vendor&id=${id}` });
   revalidatePath('/profile');
   redirect(`/profile?${flash('Company profile saved', 'Your address, phone and authorized signatory were updated.')}`);
 }

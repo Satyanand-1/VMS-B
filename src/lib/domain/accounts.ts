@@ -5,6 +5,7 @@ import { db, must } from '../supabase/admin';
 import { loginDetailsEmail, newPasswordEmail, sendEmail } from '../email';
 import { addDays, todayISO } from '../format';
 import { audit } from '../audit';
+import { notifyUsers } from './notify';
 import type { Session } from '../session';
 
 // Random 14-character temporary password (letters, digits, symbols).
@@ -44,6 +45,10 @@ export async function createLogin(s: Session, opts: {
   }), 'account');
   const sent = await sendEmail('login_details', opts.email, 'Your AT VMS login details', loginDetailsEmail(opts.name, opts.email, opts.password));
   await audit(s, 'invite', 'account', data.user.id, `${sent ? 'emailed' : 'created (email not sent)'} login details for ${opts.name} (${opts.email})`);
+  // Welcome note in the new user's bell, with where to start.
+  const start = opts.role === 'account_manager' ? { body: 'Your clients and vendors are on My Clients and My Vendors.', link: '/dashboard' }
+    : { body: 'Upload your documents on Documents, then submit each month from the menu.', link: '/my-documents' };
+  await notifyUsers([data.user.id], { title: 'Welcome to Arkhya Tech VMS', ...start });
   return { sent, email: opts.email, password: opts.password };
 }
 

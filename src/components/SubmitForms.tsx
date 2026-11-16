@@ -25,16 +25,16 @@ export function SubmitForm({ people, w2, vendor, cancelHref, emptyNote }: { peop
           <div className="field"><label htmlFor="f-person">Consultant<span className="req">*</span></label>
             <select id="f-person" name="person_id" value={pid} onChange={(e) => setPid(e.target.value)}>
               {people.map((x) => <option key={x.id} value={x.id}>{x.name} — {x.client}</option>)}
-            </select>{fe?.person_id ? <span className="field-error">{fe.person_id}</span> : null}</div>
+            </select>{fe?.person_id ? <span className="field-error srv">{fe.person_id}</span> : null}</div>
         ) : null}
         <div className="field"><label htmlFor="f-period">Billing period<span className="req">*</span></label>
           {p && p.openPeriods.length ? (
             <select id="f-period" name="period" key={pid}>{p.openPeriods.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
           ) : <input className="readonly" readOnly value="All recent months are already submitted" />}
-          {fe?.period ? <span className="field-error">{fe.period}</span> : null}</div>
+          {fe?.period ? <span className="field-error srv">{fe.period}</span> : null}</div>
         <div className="field"><label htmlFor="f-hours">{w2 ? 'Total hours' : 'Total billed hours'}<span className="req">*</span></label>
           <input id="f-hours" name="hours" inputMode="decimal" placeholder="e.g. 160" value={hours} onChange={(e) => setHours(e.target.value)} />
-          {fe?.hours ? <span className="field-error">{fe.hours}</span> : null}</div>
+          {fe?.hours ? <span className="field-error srv">{fe.hours}</span> : null}</div>
         {!w2 ? (
           <>
             <div className="field"><label>Hourly rate<span className="lock">From assignment</span></label><input className="readonly" readOnly value={p ? money(p.rate) : ''} /></div>
@@ -44,8 +44,8 @@ export function SubmitForm({ people, w2, vendor, cancelHref, emptyNote }: { peop
         <div className="field"><label>Payment term<span className="lock">From assignment</span></label><input className="readonly" readOnly value={p?.term || ''} /></div>
       </Section>
       <Section title="Attachments" hint="PDF, DOCX, JPG, JPEG or PNG · max 5 MB per file.">
-        {!w2 ? <UploadRow name="invoice" label="Invoice" errors={fe} /> : null}
-        <UploadRow name="timesheet" label="Timesheet" errors={fe} />
+        {!w2 ? <UploadRow name="invoice" label="Invoice" required errors={fe} /> : null}
+        <UploadRow name="timesheet" label="Timesheet" required errors={fe} />
       </Section>
       <FormFooter cancelHref={cancelHref} submitLabel={w2 ? 'Upload Timesheet' : 'Upload Invoice'} pending={pending} error={state?.error} />
     </form>
@@ -65,7 +65,7 @@ export function ResubmitForm({ sub, w2, cancelHref }: { sub: { id: string; ref: 
       <Section title={`Corrected ${w2 ? 'timesheet' : 'invoice'} · ${sub.ref}`}>
         <div className="field"><label htmlFor="f-hours">{w2 ? 'Total hours' : 'Total billed hours'}<span className="req">*</span></label>
           <input id="f-hours" name="hours" inputMode="decimal" value={hours} onChange={(e) => setHours(e.target.value)} />
-          {fe?.hours ? <span className="field-error">{fe.hours}</span> : null}</div>
+          {fe?.hours ? <span className="field-error srv">{fe.hours}</span> : null}</div>
         {!w2 ? <div className="field"><label>Invoice amount (USD)<span className="lock">Auto-calculated</span></label><input className="readonly" readOnly value={money(Number(hours) > 0 ? round(Number(hours) * sub.rate) : 0)} /></div> : null}
       </Section>
       <Section title="Attachments" hint="Upload the corrected files. A file you don’t replace is kept from the rejected version.">
@@ -87,7 +87,7 @@ export function ReplaceFile({ submissionId, kind, label }: { submissionId: strin
       <input type="hidden" name="submission_id" value={submissionId} />
       <input type="hidden" name="mode" value="replace" />
       <UploadRow name={kind} errors={state?.fieldErrors} />
-      {state?.error ? <span className="field-error">{state.error}</span> : null}
+      {state?.error ? <span className="field-error srv">{state.error}</span> : null}
       <div className="row-actions"><button type="button" className="link-btn" onClick={() => setOpen(false)}>Cancel</button><button type="submit" className="btn btn-primary btn-sm" disabled={pending}>{pending ? 'Uploading…' : 'Upload'}</button></div>
     </form>
   );

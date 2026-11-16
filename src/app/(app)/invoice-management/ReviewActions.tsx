@@ -23,7 +23,7 @@ export function ReviewActions({ submissionId, back }: { submissionId: string; ba
           <div className="field">
             <label htmlFor="rv-reason">Reason for rejection<span className="req">*</span></label>
             <textarea id="rv-reason" name="reason" className="rv-reason" placeholder="Explain what must be corrected" />
-            {state?.fieldErrors?.reason ? <span className="field-error">{state.fieldErrors.reason}</span> : null}
+            {state?.fieldErrors?.reason ? <span className="field-error srv">{state.fieldErrors.reason}</span> : null}
           </div>
           <div className="review-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setRejecting(false)}>Cancel</button>
@@ -43,9 +43,9 @@ export function ReviewClientInvoice({ personId, period }: { personId: string; pe
       <input type="hidden" name="person_id" value={personId} />
       <input type="hidden" name="period" value={period} />
       <UploadRow name="file" errors={state?.fieldErrors} />
-      <div className="field"><label htmlFor="rv-ci-hours">Client billable hours</label><input id="rv-ci-hours" name="hours" className="rv-client-hours" inputMode="decimal" placeholder="Enter hours" />
-        {state?.fieldErrors?.hours ? <span className="field-error">{state.fieldErrors.hours}</span> : null}</div>
-      {state?.error ? <span className="field-error">{state.error}</span> : null}
+      <div className="field"><label htmlFor="rv-ci-hours">Client billable hours<span className="req">*</span></label><input id="rv-ci-hours" name="hours" className="rv-client-hours" inputMode="decimal" placeholder="Enter hours" />
+        {state?.fieldErrors?.hours ? <span className="field-error srv">{state.fieldErrors.hours}</span> : null}</div>
+      {state?.error ? <span className="field-error srv">{state.error}</span> : null}
       <div className="review-actions"><button type="submit" className="btn btn-secondary" disabled={pending}>{pending ? 'Saving…' : 'Save client invoice'}</button></div>
     </form>
   );

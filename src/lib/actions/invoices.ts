@@ -9,6 +9,7 @@ import { sendEmail } from '../email';
 import { checkFile, storeFile, unstage } from '../files';
 import { fmtDate, monthLong, roundHalfUp } from '../format';
 import { monthOptions, type Submission, type Person } from '../data';
+import { amOfPerson, notifyStaff } from '../domain/notify';
 import type { FormState } from './auth';
 
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
@@ -18,7 +19,8 @@ async function notifySubmitter(person: Pick<Person, 'id' | 'vendor_id' | 'full_n
     ? (await db().from('user_accounts').select('id,email,full_name').eq('vendor_id', person.vendor_id).limit(1)).data?.[0]
     : (await db().from('user_accounts').select('id,email,full_name').eq('person_id', person.id).limit(1)).data?.[0];
   if (!acc) return;
-  await db().from('notifications').insert({ user_id: acc.id, title, body, link: person.vendor_id ? '/invoices' : '/dashboard' });
+  const type = person.vendor_id ? 'consultant' : ((await db().from('people').select('type').eq('id', person.id).single()).data as { type: string } | null)?.type;
+  await db().from('notifications').insert({ user_id: acc.id, title, body, link: type === 'w2' ? '/timesheets' : '/invoices' });
   await sendEmail('status_change', acc.email, title, `Hello ${acc.full_name},\n\n${body}\n\nArkhya Tech`);
 }
 
@@ -71,6 +73,7 @@ export async function reviewClientInvoiceAction(_: FormState, raw: FormData): Pr
   const { error } = await db().from('client_invoices').insert({ client_id: person.client_id, person_id: personId, period, hours: roundHalfUp(hours), file_path: stored.path, file_name: stored.name, uploaded_by: s.account.id });
   if (error) return { error: 'A client invoice is already uploaded for this month.' };
   await audit(s, 'upload', 'client_invoice', personId, `uploaded the ${monthLong(period)} client invoice for ${person.full_name} (${hours} h)`);
+  await notifyStaff(s, [await amOfPerson(personId)], { title: 'Client invoice uploaded', body: `${person.full_name} · ${monthLong(period)} · ${hours} h.`, link: `/invoice-management?m=review&person=${personId}&period=${period}` });
   revalidatePath('/invoice-management');
   redirect(`/invoice-management?m=review&person=${personId}&period=${period}`);
 }
@@ -138,6 +141,8 @@ export async function submitAction(_: FormState, raw: FormData): Promise<FormSta
   });
   if (error) return { fieldErrors: { period: `Only one ${w2 ? 'timesheet' : 'invoice'} is allowed per month.` } };
   await audit(s, 'submit', 'submission', ref, `submitted ${ref} (${p.full_name}, ${monthLong(period)}, ${hours} h)`);
+  await notifyStaff(s, [await amOfPerson(p.id)], { title: `${w2 ? 'Timesheet' : 'Invoice'} ${ref} submitted`,
+    body: `${p.full_name} · ${monthLong(period)} · ${hours} h. Review it against the client invoice.`, link: `/invoice-management?m=review&person=${p.id}&period=${period}` });
   revalidatePath(back);
   redirect(`${back}?${flash(`${w2 ? 'Timesheet' : 'Invoice'} ${ref} submitted`, `${hours} h for ${monthLong(period)}. It is In Progress until it is reviewed against the client invoice.`)}`);
 }
@@ -175,6 +180,8 @@ export async function resubmitAction(_: FormState, raw: FormData): Promise<FormS
   });
   if (error) { await db().from('submissions').update({ status: old.status }).eq('id', old.id); return { error: error.message }; }
   await audit(s, mode === 'resubmit' ? 'resubmit' : 'replace', 'submission', old.ref, `${mode === 'resubmit' ? 'resubmitted' : 'replaced a file on'} ${old.ref} (${p.full_name}, v${old.version_no + 1})`);
+  await notifyStaff(s, [await amOfPerson(p.id)], { title: mode === 'resubmit' ? `${old.ref} resubmitted` : `${old.ref}: file replaced`,
+    body: `${p.full_name} · ${monthLong(old.period)} · ${hours} h. It is In Progress for review again.`, link: `/invoice-management?m=review&person=${p.id}&period=${old.period}` });
   const back = s.persona === 'w2' ? '/timesheets' : '/invoices';
   revalidatePath(back);
   redirect(`${back}?${flash(mode === 'resubmit' ? `${old.ref} resubmitted` : 'File replaced', `${old.ref} is In Progress for review again. The earlier version is kept as Superseded.`)}`);

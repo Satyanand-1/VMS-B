@@ -17,6 +17,7 @@ function clientDetailErrors(f: { address: string | null; currency: string; time_
 }
 import { monthLong } from '../format';
 import { docDateErrors } from '../validate';
+import { amOfPerson, notifyStaff, notifyUsers } from '../domain/notify';
 import type { FormState } from './auth';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -63,6 +64,7 @@ export async function createClientAction(_: FormState, raw: FormData): Promise<F
   else await db().from('documents').insert({ owner_kind: 'client', owner_id: c.id, doc_type: 'MSA', valid_from: msa.start, valid_to: msa.end });
   for (const x of extraDocs(form)) if (x.file && x.name) await addDocumentVersion(s, 'client', c.id, x.name, x.file, { validFrom: x.start, validTo: x.end, ownerLabel: f.name });
   await audit(s, 'create', 'client', c.id, `created client ${f.name}`, null, f);
+  await notifyUsers(ams, { title: `New client assigned: ${f.name}`, body: 'You are an account manager for this client.', link: `/clients?client=${c.id}` }, s.account.id);
   revalidatePath('/clients');
   redirect(`/clients?client=${c.id}&${flash('Client added', `${f.name} was created and assigned to its account managers.`)}`);
 }
@@ -103,7 +105,10 @@ export async function updateClientAction(_: FormState, raw: FormData): Promise<F
     const current = (must(await db().from('client_account_managers').select('account_manager_id').eq('client_id', id), 'AMs') as { account_manager_id: string }[]).map((r) => r.account_manager_id);
     const add = ams.filter((a) => !current.includes(a));
     const remove = current.filter((a) => !ams.includes(a));
-    if (add.length) must(await db().from('client_account_managers').insert(add.map((a) => ({ client_id: id, account_manager_id: a }))), 'add AMs');
+    if (add.length) {
+      must(await db().from('client_account_managers').insert(add.map((a) => ({ client_id: id, account_manager_id: a }))), 'add AMs');
+      await notifyUsers(add, { title: `New client assigned: ${f.name}`, body: 'You are now an account manager for this client.', link: `/clients?client=${id}` }, s.account.id);
+    }
     if (remove.length) must(await db().from('client_account_managers').delete().eq('client_id', id).in('account_manager_id', remove), 'remove AMs');
   }
   if (msa.file) await addDocumentVersion(s, 'client', id, 'MSA', msa.file, { validFrom: msa.start, validTo: msa.end, ownerLabel: f.name });
@@ -148,6 +153,7 @@ export async function saveClientInvoicesAction(_: FormState, raw: FormData): Pro
     const stored = await storeFile(`client-invoices/${t.clientId}/${period}`, t.file);
     must(await db().from('client_invoices').insert({ client_id: t.clientId, person_id: t.personId, period, hours: t.hours, file_path: stored.path, file_name: stored.name, uploaded_by: s.account.id }), 'client invoice');
     await audit(s, 'upload', 'client_invoice', t.personId, `uploaded the ${monthLong(period)} client invoice for ${t.name} (${t.hours} h)`);
+    await notifyStaff(s, [await amOfPerson(t.personId)], { title: 'Client invoice uploaded', body: `${t.name} · ${monthLong(period)} · ${t.hours} h.`, link: `/invoice-management?m=review&person=${t.personId}&period=${period}` });
   }
   revalidatePath('/clients');
   revalidatePath('/invoice-management');

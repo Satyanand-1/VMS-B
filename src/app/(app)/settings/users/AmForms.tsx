@@ -27,7 +27,7 @@ export function AmForm({ mode, data, clientOptions, cancelHref, signIn }: {
           {mode === 'edit' ? <Select name="status" label="Status" value={data.status} options={[{ value: 'active', label: 'Active' }, { value: 'invited', label: 'Invited' }, { value: 'inactive', label: 'Inactive' }]}
             note="An Inactive account manager cannot sign in." /> : null}
           {clientOptions.length || mode === 'edit'
-            ? <MultiSelect name="clients" label="Clients" options={clientOptions} selected={data.clients} required={mode === 'edit' && data.clients.length > 0} errors={fe} placeholder="Select clients…" />
+            ? <MultiSelect name="clients" label="Clients" options={clientOptions} selected={data.clients} errors={fe} placeholder="Select clients…" />
             : <Text name="clients_none" label="Clients" value="No clients yet — assign this account manager when you add a client" readOnly lock="Later" full />}
         </Section>
         {mode === 'add' ? <Section title="Sign-in" hint="The username is the work email above."><PasswordChoice errors={fe} /></Section> : null}

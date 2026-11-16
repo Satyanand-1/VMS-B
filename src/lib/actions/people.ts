@@ -10,6 +10,7 @@ import { addDocumentVersion, auditPeriodOf, extraDocs, uploadField } from '../do
 import { createLogin, loginNote, passwordFromForm } from '../domain/accounts';
 import { savePaymentTerm } from './vendors';
 import { badDate, docDateErrors, durationError, phoneError, rangeError } from '../validate';
+import { amOfPerson, notifyStaff } from '../domain/notify';
 import type { FormState } from './auth';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -125,6 +126,8 @@ export async function createPersonAction(_: FormState, raw: FormData): Promise<F
 
   const label = type === 'consultant' ? 'Consultant' : type === 'w2' ? 'W-2 resource' : '1099 resource';
   await audit(s, 'create', 'person', p.id, `created ${label.toLowerCase()} ${f.full_name}`, null, { ...f, ssn: undefined });
+  await notifyStaff(s, [await amOfPerson(p.id)], { title: `New ${label.toLowerCase()}: ${f.full_name}`, body: f.client_id ? 'Mapped to a client and ready for monthly submissions.' : 'Not mapped to a client yet.',
+    link: type === 'consultant' ? `/vendors?m=view-person&id=${p.id}` : `/resources/${type === 'w2' ? 'w2' : '1099'}?m=view-person&id=${p.id}` });
   revalidatePath(back.split('?')[0]);
   // Vendor consultants have no login: their vendor submits for them. W-2 / 1099 resources get login details by email.
   if (type === 'consultant') redirect(`${back}${back.includes('?') ? '&' : '?'}${flash('Consultant added', `${f.full_name} was added to the vendor.`)}`);

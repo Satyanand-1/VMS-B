@@ -10,6 +10,8 @@ export function Bell({ notes, unread }: { notes: Note[]; unread: number }) {
   const [open, setOpen] = useState(false);
   const [count, setCount] = useState(unread);
   const box = useRef<HTMLDivElement>(null);
+  // The page re-renders with a fresh unread count after each navigation; keep the badge in step with it.
+  useEffect(() => { setCount(unread); }, [unread]);
   useEffect(() => {
     const onDoc = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', onDoc);

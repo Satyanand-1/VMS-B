@@ -7,6 +7,7 @@ import { audit } from '../audit';
 import { sendEmail } from '../email';
 import { checkFile, unstage } from '../files';
 import { rangeError } from '../validate';
+import { amOfPerson, amOfVendor, notifyStaff } from '../domain/notify';
 import { addDocumentVersion, uploadField } from '../domain/documents';
 import type { FormState } from './auth';
 
@@ -74,6 +75,9 @@ export async function uploadOwnDocumentAction(_: FormState, raw: FormData): Prom
   const range = rangeError(u.start, u.end);
   if (range) return { error: range };
   await addDocumentVersion(s, d.owner_kind as 'vendor' | 'person', d.owner_id, d.doc_type, u.file, { uploader: s.persona === 'vendor' ? 'vendor' : 'resource', validFrom: u.start, validTo: u.end });
+  const am = d.owner_kind === 'vendor' ? await amOfVendor(d.owner_id) : await amOfPerson(d.owner_id);
+  const who = s.persona === 'vendor' ? ((await db().from('vendors').select('name').eq('id', d.owner_id).single()).data as { name: string } | null)?.name : s.account.full_name;
+  await notifyStaff(s, [am], { title: `${d.doc_type} uploaded by ${who}`, body: 'A new version is on file. See the Document Tracker.', link: '/documents' });
   revalidatePath('/my-documents');
   redirect(`/my-documents?flash=${encodeURIComponent(`${d.doc_type} uploaded|The earlier version is kept in history.`)}`);
 }

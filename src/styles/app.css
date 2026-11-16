@@ -54,3 +54,13 @@ form > button.profile-menu-item { width: 100%; }
 /* Upload / Replace form on My Documents: name, then file, then dates and buttons, stacked so nothing overlaps. */
 .replace-form .doc-field.has-dates:not(.doc-bare) { grid-template-columns: 1fr; }
 .replace-form .field-error { white-space: normal; }
+
+/* Required (*) field left empty: red outline and a message under it, until it is filled. */
+.field.field-missing > input, .field.field-missing > select, .field.field-missing > textarea,
+.field.field-missing .date-field, .field.field-missing .ms-toggle, .field.field-missing .upload-box,
+.field.field-missing .custom-term-row input { border-color: #d64545 !important; box-shadow: 0 0 0 3px rgba(214, 69, 69, 0.12); }
+.field.field-missing::after { content: 'This field is required.'; color: #c53030; font-size: 0.8rem; font-weight: 500; }
+.doc-field.field-missing::after { grid-column: 1 / -1; }
+/* An error from the last save disappears as soon as the user corrects that field. */
+.field.edited .field-error.srv { display: none; }
+.errors-fixed .form-footer .field-error[role=alert] { display: none; }

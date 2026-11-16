@@ -24,6 +24,56 @@ async function stageFiles(fd: FormData): Promise<FormData | string> {
   return out;
 }
 
+// As soon as the user changes a field, its red marks go away: the "required" outline and any error from the
+// last save (e.g. a Federal ID that was too short). A new save shows the server's errors again.
+if (typeof document !== 'undefined' && !(window as unknown as { __reqWatch?: boolean }).__reqWatch) {
+  (window as unknown as { __reqWatch?: boolean }).__reqWatch = true;
+  const clear = (e: Event) => {
+    const field = (e.target as HTMLElement | null)?.closest?.('.field');
+    if (!field) return;
+    field.classList.remove('field-missing');
+    if (field.querySelector('.srv')) field.classList.add('edited');
+    // When every flagged field has been corrected, the "Check the highlighted fields" line goes too.
+    const card = field.closest('.form-card') || field.closest('form');
+    if (card && ![...card.querySelectorAll('.field:not(.edited) .srv, .field-missing')].length) card.classList.add('errors-fixed');
+  };
+  document.addEventListener('input', clear, true);
+  document.addEventListener('change', clear, true);
+}
+
+// Every field whose label has the red * must be filled before the form is sent (the server checks again).
+// Marks each empty one with "field-missing" (red outline + "This field is required.") and returns how many there are.
+function checkRequired(form: HTMLFormElement): number {
+  form.querySelectorAll('.field-missing').forEach((el) => el.classList.remove('field-missing'));
+  let missing = 0;
+  const fields = [...form.querySelectorAll<HTMLElement>('.field')].filter((f) => f.querySelector(':scope > label .req, :scope > .doc-name label .req') && f.offsetParent !== null);
+  for (const f of fields) {
+    let filled: boolean;
+    if (f.classList.contains('doc-field')) {
+      // Document: a file already on record, or one chosen now.
+      const chosen = [...f.querySelectorAll<HTMLInputElement>('input[type=file]')].some((i) => (i.files?.length || 0) > 0);
+      filled = chosen || !!f.querySelector('.doc-file .upload-done');
+    } else if (f.querySelector('.ms')) {
+      filled = !!f.querySelector('.ms input[type=hidden]'); // multi-select: at least one chosen
+    } else if (f.querySelector('.date-native')) {
+      filled = !!(f.querySelector('.date-native') as HTMLInputElement).value;
+    } else if (f.classList.contains('pw-choice')) {
+      const mode = (f.querySelector('input[name=pw_mode]') as HTMLInputElement | null)?.value;
+      filled = mode !== 'own' || !!(f.querySelector('input[name=pw_value]') as HTMLInputElement | null)?.value.trim();
+    } else {
+      // Text, select or textarea; for controls with a hidden value (payment term, work location) the hidden value counts.
+      const hidden = f.querySelector<HTMLInputElement>('input[type=hidden][name]');
+      const control = f.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input:not([type=hidden]):not([type=file]):not([readonly]), select, textarea');
+      if (hidden && control && !control.getAttribute('name')) filled = !!hidden.value.trim();
+      else if (control) filled = !!control.value.trim();
+      else filled = true; // read-only / locked value
+    }
+    if (!filled) { f.classList.add('field-missing'); missing++; }
+  }
+  if (missing) form.querySelector<HTMLElement>('.field-missing input:not([type=hidden]), .field-missing select, .field-missing textarea, .field-missing button')?.focus();
+  return missing;
+}
+
 // Submits a server action from onSubmit, so React does not clear the form after a validation error
 // (passing the action to <form action> resets uncontrolled fields). Includes the clicked button's name/value.
 export function useFormAction(action: (state: FormState, form: FormData) => Promise<FormState>) {
@@ -34,6 +84,11 @@ export function useFormAction(action: (state: FormState, form: FormData) => Prom
     e.preventDefault();
     if (uploading || pending) return;
     const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
+    e.currentTarget.querySelectorAll('.field.edited').forEach((el) => el.classList.remove('edited')); // show the next save's errors
+    (e.currentTarget.closest('.form-card') || e.currentTarget).classList.remove('errors-fixed');
+    e.currentTarget.classList.remove('errors-fixed');
+    const missing = checkRequired(e.currentTarget);
+    if (missing) { setUploadError(`Fill in the ${missing === 1 ? 'required field' : `${missing} required fields`} marked *.`); return; }
     const raw = new FormData(e.currentTarget, submitter && submitter.getAttribute('name') ? submitter : undefined);
     const hasFiles = [...raw.values()].some((v) => v instanceof File && v.size > 0);
     let fd: FormData | string = raw;
