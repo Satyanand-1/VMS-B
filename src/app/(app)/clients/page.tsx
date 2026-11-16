@@ -50,7 +50,9 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         ...(all ? [m.client[p.client_id!]?.name] : []),
         <Badge key="s" text={ci ? 'Uploaded' : 'Not Uploaded'} />
       ],
-      fileCell: ci ? <div className="doc-cell"><FileChip name={ci.file_name} /><FileLinks fileKey={`ci-${ci.id}`} name={ci.file_name} download={false} /></div> : undefined,
+      // Uploaded: View, plus Edit (opens the Review pop-up in Invoice Management, where hours and file can be corrected until approval).
+      fileCell: ci ? <div className="doc-cell"><FileChip name={ci.file_name} /><FileLinks fileKey={`ci-${ci.id}`} name={ci.file_name} download={false} />
+        <Link className="link-btn" href={`/invoice-management?m=review&person=${p.id}&period=${period}`}>Edit</Link></div> : undefined,
       hours: ci ? String(Number(ci.hours)) : undefined
     };
   });

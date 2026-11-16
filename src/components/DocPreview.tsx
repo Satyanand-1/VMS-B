@@ -1,6 +1,8 @@
+import { DocxViewer } from './DocxViewer';
+
 // Document shown inside a fixed-size, scrollable viewer (Invoice Management review: client invoice and vendor / resource
-// invoice side by side, both the same size). PDF and images are displayed; Word files cannot be shown by browsers, so
-// they get View / Download only. Files are opened through /api/files, which checks access first.
+// invoice side by side, both the same size). PDF and images are displayed by the browser; Word (.docx) files are
+// converted to pages in the browser. Files are opened through /api/files, which checks access first.
 export function DocPreview({ fileKey, name, extra }: { fileKey: string; name: string; extra?: React.ReactNode }) {
   const ext = (name.split('.').pop() || '').toLowerCase();
   const src = `/api/files/${fileKey}`;
@@ -10,6 +12,7 @@ export function DocPreview({ fileKey, name, extra }: { fileKey: string; name: st
         {ext === 'pdf' ? <iframe src={src} title={name} loading="lazy" />
           // eslint-disable-next-line @next/next/no-img-element
           : ['jpg', 'jpeg', 'png'].includes(ext) ? <img src={src} alt={name} loading="lazy" />
+          : ext === 'docx' ? <DocxViewer src={src} name={name} />
           : (
             <div className="doc-viewer-none">
               <span className="doc-badge">{ext.toUpperCase() || 'FILE'}</span>

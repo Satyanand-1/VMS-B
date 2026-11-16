@@ -111,3 +111,7 @@ form > button.profile-menu-item { width: 100%; }
 .review-doc-title .ci-edit { flex-basis: 100%; }
 .profile-documents { margin-top: 20px; scroll-margin-top: 16px; }
 .approval-box { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+/* Word preview (docx-preview) inside the review viewer: pages scaled to the viewer width, scrolling inside it */
+.docx-render { background: #e8edf3; padding: 8px 0; }
+.docx-render .docx-wrapper { background: #e8edf3 !important; padding: 8px !important; }
+.docx-render .docx-wrapper > section.docx { box-shadow: 0 1px 4px rgba(16, 42, 67, 0.15); margin: 0 auto 10px !important; transform-origin: top center; max-width: 100%; }

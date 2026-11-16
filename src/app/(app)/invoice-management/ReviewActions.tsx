@@ -65,7 +65,7 @@ export function CancelApproval({ submissionId, back, lastDay }: { submissionId: 
 export function EditClientInvoice({ ciId, hours, back }: { ciId: string; hours: number; back: string }) {
   const [state, action, pending] = useFormAction(updateClientInvoiceAction);
   const [open, setOpen] = useState(false);
-  if (!open) return <button type="button" className="link-btn ci-edit-link" onClick={() => setOpen(true)}>Edit</button>;
+  if (!open) return <button type="button" className="btn btn-secondary btn-sm ci-edit-link" onClick={() => setOpen(true)}>Edit client invoice</button>;
   return (
     <form onSubmit={action} className="review-ci ci-edit">
       <input type="hidden" name="client_invoice_id" value={ciId} />

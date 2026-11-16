@@ -106,7 +106,8 @@ async function reviewModal(s: Session, personId: string, period: string, closeHr
         {/* Both documents side by side, each in a viewer of the same size that scrolls on its own. */}
         <div className="review-grid review-docs">
           <div className="review-doc">
-            <div className="review-doc-title">Client invoice{canEditCi ? <EditClientInvoice ciId={ci!.id} hours={Number(ci!.hours)} back={closeHref} /> : null}</div>
+            <div className="review-doc-title">Client invoice{canEditCi ? <EditClientInvoice ciId={ci!.id} hours={Number(ci!.hours)} back={closeHref} />
+              : ci && sub?.status === 'approved' ? <span className="person-sub inline">Approved: cancel the approval below to edit it.</span> : null}</div>
             {ci ? <DocPreview fileKey={`ci-${ci.id}`} name={ci.file_name} />
               : <><div className="review-missing">The client invoice is not uploaded yet. Upload it here.</div><ReviewClientInvoice personId={p.id} period={period} /></>}
           </div>
