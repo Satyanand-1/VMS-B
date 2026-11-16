@@ -157,12 +157,14 @@ export async function resubmitAction(_: FormState, raw: FormData): Promise<FormS
   if (!p) return { error: 'You can only change your own submissions.' };
   const mode = String(form.get('mode')) === 'replace' ? 'replace' : 'resubmit';
   if (mode === 'resubmit' && old.status !== 'rejected') return { error: 'Only a rejected submission can be resubmitted.' };
-  if (mode === 'replace' && !['in_progress', 'rejected'].includes(old.status)) return { error: 'An approved submission cannot be changed.' };
+  if (mode === 'replace' && old.status === 'rejected') return { error: 'This one was rejected: use Resubmit and upload the corrected files.' };
+  if (mode === 'replace' && old.status !== 'in_progress') return { error: 'An approved submission cannot be changed.' };
   const w2 = p.type === 'w2';
   const hours = mode === 'resubmit' ? Number(form.get('hours')) : Number(old.hours);
   const fe: Record<string, string> = {};
   if (!(hours > 0 && hours <= 744)) fe.hours = 'Enter the total hours for the month (more than 0).';
-  const files = await filesFrom(form, w2, false);
+  // Resubmitting a rejected one needs the corrected files (invoice and timesheet; timesheet only for W-2).
+  const files = await filesFrom(form, w2, mode === 'resubmit');
   Object.assign(fe, files.fe);
   if (!files.invoice && !files.timesheet && mode === 'replace') fe.timesheet = 'Choose the file to upload.';
   if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };

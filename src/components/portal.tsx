@@ -75,7 +75,8 @@ export async function SubmissionsPortal({ s, sp, path }: { s: Session; sp: Recor
   if (sel && sp.m === 'view') {
     const p = pName[sel.person_id];
     const ci = cis.find((c) => c.person_id === sel.person_id && c.period === sel.period);
-    const canChange = vendor && ['in_progress', 'rejected'].includes(sel.status);
+    // Replace a file only while In Progress; a rejected one is corrected with Resubmit (corrected files required).
+    const canChange = vendor && sel.status === 'in_progress';
     const fileRow = (lbl: string, kind: 'invoice' | 'timesheet') => {
       const name = kind === 'invoice' ? sel.invoice_name : sel.timesheet_name;
       const key = `${kind === 'invoice' ? 'si' : 'st'}-${sel.id}`;

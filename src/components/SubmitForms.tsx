@@ -69,8 +69,9 @@ export function ResubmitForm({ sub, w2, cancelHref }: { sub: { id: string; ref: 
         {!w2 ? <div className="field"><label>Invoice amount (USD)<span className="lock">Auto-calculated</span></label><input className="readonly" readOnly value={money(Number(hours) > 0 ? round(Number(hours) * sub.rate) : 0)} /></div> : null}
       </Section>
       <Section title="Attachments" hint="PDF, DOCX, JPG or PNG · max 5 MB">
-        {!w2 ? <UploadRow name="invoice" label="Invoice" note={sub.invoice ? `Rejected version: ${sub.invoice}` : undefined} errors={fe} /> : null}
-        <UploadRow name="timesheet" label="Timesheet" note={sub.timesheet ? `Rejected version: ${sub.timesheet}` : undefined} errors={fe} />
+        {/* A rejected submission is corrected with new files: both are required (the rejected ones are kept in history only). */}
+        {!w2 ? <UploadRow name="invoice" label="Corrected invoice" required note={sub.invoice ? `Rejected version: ${sub.invoice}` : undefined} errors={fe} /> : null}
+        <UploadRow name="timesheet" label="Corrected timesheet" required note={sub.timesheet ? `Rejected version: ${sub.timesheet}` : undefined} errors={fe} />
       </Section>
       <FormFooter cancelHref={cancelHref} submitLabel="Resubmit" pending={pending} error={state?.error} />
     </form>
