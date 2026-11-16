@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FileChip } from './ui';
+import { emailProblem } from '@/lib/email-format';
 
 const UPLOAD_ICON = <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" /></svg>;
 const TYPES = ['pdf', 'docx', 'jpg', 'jpeg', 'png'];
@@ -46,12 +47,22 @@ export function Text({ name, label, value, required, readOnly, lock, note, full,
 }) {
   // Phone fields: digits only, plus + ( ) - and spaces; letters are dropped as they are typed or pasted.
   const phone = !readOnly && /phone$/.test(name);
+  // Email fields: checked when the user leaves the field (name@company.com: one @, a domain and an extension, no spaces);
+  // once shown, the message updates as they type and disappears when the address is valid. Saving is blocked while it is wrong.
+  const email = !readOnly && /email$/.test(name);
+  const [emailErr, setEmailErr] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
   return (
     <Field label={label} required={required} lock={readOnly ? lock || 'Auto-filled' : undefined} note={note} full={full} error={errors?.[name]} htmlFor={`f-${name}`}>
       <input id={`f-${name}`} name={name} type={phone ? 'tel' : type} defaultValue={value ?? ''} readOnly={readOnly} className={readOnly ? 'readonly' : undefined}
-        placeholder={placeholder ?? (phone ? '+1 (555) 123-4567' : undefined)} autoComplete={autoComplete ?? (phone ? 'tel' : undefined)}
-        inputMode={phone ? 'tel' : undefined} maxLength={phone ? 20 : undefined}
-        onInput={phone ? (e) => { const el = e.currentTarget; const v = el.value.replace(/[^\d+()\-\s]/g, ''); if (v !== el.value) el.value = v; } : undefined} />
+        placeholder={placeholder ?? (phone ? '+1 (555) 123-4567' : email ? 'name@company.com' : undefined)}
+        autoComplete={autoComplete ?? (phone ? 'tel' : email ? 'email' : undefined)}
+        inputMode={phone ? 'tel' : email ? 'email' : undefined} maxLength={phone ? 20 : email ? 254 : undefined} spellCheck={email ? false : undefined}
+        data-email={email ? '1' : undefined} aria-invalid={email && touched && emailErr ? true : undefined}
+        onBlur={email ? (e) => { setTouched(true); setEmailErr(emailProblem(e.currentTarget.value)); } : undefined}
+        onInput={phone ? (e) => { const el = e.currentTarget; const v = el.value.replace(/[^\d+()\-\s]/g, ''); if (v !== el.value) el.value = v; }
+          : email ? (e) => { const el = e.currentTarget; if (/\s/.test(el.value)) el.value = el.value.replace(/\s/g, ''); if (touched) setEmailErr(emailProblem(el.value)); } : undefined} />
+      {email && touched && emailErr ? <span className="field-error email-err">{emailErr}</span> : null}
     </Field>
   );
 }

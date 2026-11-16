@@ -1,4 +1,5 @@
 'use server';
+import { isValidEmail } from '../email-format';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { db, must } from '../supabase/admin';
@@ -12,7 +13,6 @@ import { docDateErrors, phoneError } from '../validate';
 import { amOfVendor, notifyStaff, notifyUsers } from '../domain/notify';
 import type { FormState } from './auth';
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
 
 // TM-10: "Custom" payment terms are Net + days; a new one is saved for later drop-downs.
@@ -50,7 +50,7 @@ export async function createVendorAction(_: FormState, raw: FormData): Promise<F
   const fe: Record<string, string> = {};
   if (!v.name) fe.name = 'Enter the vendor name.';
   if (!v.address) fe.address = 'Enter the address.';
-  if (!EMAIL.test(v.email)) fe.email = 'Enter a valid email address. It is the vendor’s sign-in username.';
+  if (!isValidEmail(v.email)) fe.email = 'Enter a valid email address. It is the vendor’s sign-in username.';
   if (v.ein.length !== 9) fe.ein = 'Enter the 9-digit federal ID (EIN).';
   const ph = phoneError(v.phone, true);
   if (ph) fe.phone = ph;

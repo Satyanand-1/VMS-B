@@ -1,4 +1,5 @@
 'use server';
+import { isValidEmail } from '../email-format';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { db, must } from '../supabase/admin';
@@ -13,7 +14,6 @@ import { badDate, docDateErrors, durationError, phoneError, rangeError } from '.
 import { amOfPerson, notifyStaff } from '../domain/notify';
 import type { FormState } from './auth';
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
 type PType = 'consultant' | 'w2' | 'w1099';
 
@@ -47,7 +47,7 @@ function personFields(form: FormData) {
 async function validate(f: ReturnType<typeof personFields>, type: PType, mode: 'add' | 'edit', personId?: string) {
   const fe: Record<string, string> = {};
   if (!f.full_name) fe.full_name = 'Enter the name.';
-  if (!EMAIL.test(f.email)) fe.email = type === 'consultant' ? 'Enter a valid email address.' : 'Enter a valid email address. It is the sign-in username.';
+  if (!isValidEmail(f.email)) fe.email = type === 'consultant' ? 'Enter a valid email address.' : 'Enter a valid email address. It is the sign-in username.';
   if (!f.role_title) fe.role_title = 'Enter the role.';
   if (!(f.hourly_rate > 0)) fe.hourly_rate = 'Enter the hourly rate.';
   if (type !== 'consultant' && !f.client_id) fe.client_id = 'Choose the client.';

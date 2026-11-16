@@ -1,4 +1,5 @@
 'use server';
+import { isValidEmail } from '../email-format';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { db, must } from '../supabase/admin';
@@ -20,7 +21,6 @@ import { docDateErrors } from '../validate';
 import { amOfPerson, notifyStaff, notifyUsers } from '../domain/notify';
 import type { FormState } from './auth';
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
 
 function clientFields(form: FormData) {
@@ -44,7 +44,7 @@ export async function createClientAction(_: FormState, raw: FormData): Promise<F
   const msa = uploadField(form, 'msa');
   const fe: Record<string, string> = {};
   if (!f.name) fe.name = 'Enter the client name.';
-  if (!EMAIL.test(f.email)) fe.email = 'Enter a valid email address.';
+  if (!isValidEmail(f.email)) fe.email = 'Enter a valid email address.';
   if (!ams.length) fe.account_managers = 'Select at least one account manager.';
   clientDetailErrors(f, fe);
   if (!msa.start) fe.msa__start = 'Enter the MSA start date.';
@@ -82,7 +82,7 @@ export async function updateClientAction(_: FormState, raw: FormData): Promise<F
   const msa = uploadField(form, 'msa');
   const fe: Record<string, string> = {};
   if (!f.name) fe.name = 'Enter the client name.';
-  if (!EMAIL.test(f.email)) fe.email = 'Enter a valid email address.';
+  if (!isValidEmail(f.email)) fe.email = 'Enter a valid email address.';
   clientDetailErrors(f, fe);
   if (!msa.start) fe.msa__start = 'Enter the MSA start date.';
   if (!msa.end) fe.msa__end = 'Enter the MSA end date.';

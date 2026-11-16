@@ -1,4 +1,5 @@
 'use server';
+import { isValidEmail } from '../email-format';
 import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { authClient } from '../supabase/server';
@@ -9,13 +10,12 @@ import { addDays, todayISO } from '../format';
 
 export type FormState = { error?: string; fieldErrors?: Record<string, string>; ok?: string } | undefined;
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // AUTH-1, AUTH-2, AUTH-3, AUTH-7
 export async function signIn(_: FormState, form: FormData): Promise<FormState> {
   const email = String(form.get('email') || '').trim().toLowerCase();
   const password = String(form.get('password') || '');
-  if (!EMAIL.test(email)) return { error: 'Enter a valid email address.' };
+  if (!isValidEmail(email)) return { error: 'Enter a valid email address.' };
   if (!password) return { error: 'Enter your password.' };
 
   const { data: acc } = await db().from('user_accounts').select('*').eq('email', email).maybeSingle();

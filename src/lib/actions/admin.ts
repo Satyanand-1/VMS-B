@@ -1,4 +1,5 @@
 'use server';
+import { isValidEmail } from '../email-format';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createHash, randomBytes } from 'crypto';
@@ -10,7 +11,6 @@ import { createLogin, loginNote, passwordFromForm } from '../domain/accounts';
 import { phoneError } from '../validate';
 import type { FormState } from './auth';
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
 const hash = (t: string) => createHash('sha256').update(t).digest('hex');
 
@@ -35,7 +35,7 @@ export async function createAmAction(_: FormState, form: FormData): Promise<Form
   if (!name) fe.full_name = 'Enter the full name.';
   const ph = phoneError(phone);
   if (ph) fe.phone = ph;
-  if (!EMAIL.test(email)) fe.email = 'Enter a valid work email.';
+  if (!isValidEmail(email)) fe.email = 'Enter a valid work email.';
   else if ((await db().from('user_accounts').select('id').eq('email', email).maybeSingle()).data) fe.email = 'An account with this email already exists.';
   // Clients are optional here: on a new system there are no clients yet (Add Client needs an account manager first).
   const pw = passwordFromForm(form);
@@ -65,7 +65,7 @@ export async function updateAmAction(_: FormState, form: FormData): Promise<Form
   if (!name) fe.full_name = 'Enter the full name.';
   const ph = phoneError(phone);
   if (ph) fe.phone = ph;
-  if (!EMAIL.test(email)) fe.email = 'Enter a valid work email.';
+  if (!isValidEmail(email)) fe.email = 'Enter a valid work email.';
   else if (email !== before.email && (await db().from('user_accounts').select('id').eq('email', email).maybeSingle()).data) fe.email = 'An account with this email already exists.';
   const current = (must(await db().from('client_account_managers').select('client_id').eq('account_manager_id', id), 'clients') as { client_id: string }[]).map((r) => r.client_id);
   const removed = current.filter((c) => !clients.includes(c));
