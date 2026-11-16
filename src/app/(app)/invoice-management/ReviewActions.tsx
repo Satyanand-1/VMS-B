@@ -1,7 +1,7 @@
 'use client';
 import { useFormAction } from '@/components/useFormAction';
 import { useState } from 'react';
-import { reviewAction, reviewClientInvoiceAction } from '@/lib/actions/invoices';
+import { reviewAction, reviewClientInvoiceAction, updateClientInvoiceAction } from '@/lib/actions/invoices';
 import { UploadRow } from '@/components/fields';
 
 // Approve / Reject (reason required) — shown only when both documents are in (CI-5).
@@ -31,6 +31,28 @@ export function ReviewActions({ submissionId, back }: { submissionId: string; ba
           </div>
         </div>
       )}
+    </form>
+  );
+}
+
+// Correct the client invoice (billable hours and/or a new file) before approving or rejecting; not once approved.
+export function EditClientInvoice({ ciId, hours, back }: { ciId: string; hours: number; back: string }) {
+  const [state, action, pending] = useFormAction(updateClientInvoiceAction);
+  const [open, setOpen] = useState(false);
+  if (!open) return <button type="button" className="link-btn ci-edit-link" onClick={() => setOpen(true)}>Edit</button>;
+  return (
+    <form onSubmit={action} className="review-ci ci-edit">
+      <input type="hidden" name="client_invoice_id" value={ciId} />
+      <input type="hidden" name="back" value={back} />
+      <div className="field"><label htmlFor="ci-edit-hours">Client billable hours<span className="req">*</span></label>
+        <input id="ci-edit-hours" name="hours" inputMode="decimal" defaultValue={hours} />
+        {state?.fieldErrors?.hours ? <span className="field-error srv">{state.fieldErrors.hours}</span> : null}</div>
+      <UploadRow name="file" label="New client invoice file (optional)" errors={state?.fieldErrors} />
+      {state?.error ? <span className="field-error">{state.error}</span> : null}
+      <div className="review-actions">
+        <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>Cancel</button>
+        <button type="submit" className="btn btn-primary" disabled={pending}>{pending ? 'Saving…' : 'Save client invoice'}</button>
+      </div>
     </form>
   );
 }

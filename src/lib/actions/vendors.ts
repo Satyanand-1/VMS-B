@@ -13,6 +13,7 @@ import { docDateErrors, phoneError } from '../validate';
 import { amOfVendor, notifyStaff, notifyUsers } from '../domain/notify';
 import { likeExact } from '../safe';
 import { savePaymentTerm } from '../domain/terms';
+import { einProblem, usPhone } from '../formats';
 import type { FormState } from './auth';
 
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
@@ -35,7 +36,7 @@ export async function createVendorAction(_: FormState, raw: FormData): Promise<F
   try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
   const v = {
     name: String(form.get('name') || '').trim(), address: String(form.get('address') || '').trim(), email: String(form.get('email') || '').trim().toLowerCase(),
-    ein: String(form.get('ein') || '').replace(/\D/g, ''), phone: String(form.get('phone') || '').trim(), state: String(form.get('state_of_incorporation') || ''),
+    einRaw: String(form.get('ein') || '').trim(), ein: String(form.get('ein') || '').replace(/\D/g, ''), phone: usPhone(String(form.get('phone') || '')), state: String(form.get('state_of_incorporation') || ''),
     signatory: String(form.get('signatory_name') || '').trim(), term: String(form.get('payment_term') || '').trim(),
     am: s.persona === 'accountmanager' ? s.account.id : String(form.get('account_manager_id') || '')
   };
@@ -43,7 +44,8 @@ export async function createVendorAction(_: FormState, raw: FormData): Promise<F
   if (!v.name) fe.name = 'Enter the vendor name.';
   if (!v.address) fe.address = 'Enter the address.';
   if (!isValidEmail(v.email)) fe.email = 'Enter a valid email address. It is the vendor’s sign-in username.';
-  if (v.ein.length !== 9) fe.ein = 'Enter the 9-digit federal ID (EIN).';
+  const einErr = einProblem(v.einRaw);
+  if (einErr) fe.ein = einErr;
   const ph = phoneError(v.phone, true);
   if (ph) fe.phone = ph;
   if (!v.state) fe.state_of_incorporation = 'Choose the state of incorporation.';
@@ -76,7 +78,7 @@ export async function createVendorAction(_: FormState, raw: FormData): Promise<F
     { owner_kind: 'vendor', owner_id: row.id, doc_type: 'ACH form', uploader_kind: 'vendor', no_dates: true }
   ]);
   for (const x of extraDocs(form)) if (x.file && x.name) await addDocumentVersion(s, 'vendor', row.id, x.name, x.file, { validFrom: x.start, validTo: x.end, ownerLabel: v.name });
-  await audit(s, 'create', 'vendor', row.id, `created vendor ${v.name}`, null, { ...v, ein: undefined });
+  await audit(s, 'create', 'vendor', row.id, `created vendor ${v.name}`, null, { ...v, ein: undefined, einRaw: undefined });
   await notifyStaff(s, [v.am], { title: `New vendor: ${v.name}`, body: `Account manager: ${v.am === s.account.id ? 'you' : 'assigned by the Super Admin'}. Login details were sent to ${v.email}.`, link: `/vendors?m=view-vendor&id=${row.id}` });
   let login;
   try { login = await createLogin(s, { email: v.email, name: v.signatory, role: 'vendor', password: pw.password!, vendorId: row.id }); }
@@ -94,9 +96,9 @@ export async function updateVendorAction(_: FormState, raw: FormData): Promise<F
   if (!canSeeVendor(s, id)) return { error: 'You do not have access to this vendor.' };
   const before = must(await db().from('vendors').select('*').eq('id', id).single(), 'vendor') as Record<string, unknown> & { name: string };
   const upd: Record<string, unknown> = {
-    address: String(form.get('address') || '').trim(), phone: String(form.get('phone') || '').trim(),
+    address: String(form.get('address') || '').trim(), phone: usPhone(String(form.get('phone') || '')),
     state_of_incorporation: String(form.get('state_of_incorporation') || ''), signatory_name: String(form.get('signatory_name') || '').trim(),
-    signatory_phone: String(form.get('signatory_phone') || '').trim() || null, payment_term: String(form.get('payment_term') || '').trim(),
+    signatory_phone: usPhone(String(form.get('signatory_phone') || '')) || null, payment_term: String(form.get('payment_term') || '').trim(),
     status: String(form.get('status') || before.status)
   };
   if (s.persona === 'superadmin') upd.account_manager_id = String(form.get('account_manager_id') || before.account_manager_id);
@@ -133,7 +135,7 @@ export async function updateVendorAction(_: FormState, raw: FormData): Promise<F
 export async function updateCompanyProfileAction(_: FormState, form: FormData): Promise<FormState> {
   const s = await requireSession(['vendor']);
   const id = s.account.vendor_id!;
-  const upd = { address: String(form.get('address') || '').trim(), phone: String(form.get('phone') || '').trim(), signatory_name: String(form.get('signatory_name') || '').trim(), signatory_phone: String(form.get('signatory_phone') || '').trim() || null };
+  const upd = { address: String(form.get('address') || '').trim(), phone: usPhone(String(form.get('phone') || '')), signatory_name: String(form.get('signatory_name') || '').trim(), signatory_phone: usPhone(String(form.get('signatory_phone') || '')) || null };
   const fe: Record<string, string> = {};
   if (!upd.address) fe.address = 'Enter the address.';
   const ph = phoneError(upd.phone, true);

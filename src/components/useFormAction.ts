@@ -3,7 +3,7 @@ import { startTransition, useActionState, useMemo, useState, type FormEvent } fr
 import { createClient } from '@supabase/supabase-js';
 import type { FormState } from '@/lib/actions/auth';
 import { stageUploadAction } from '@/lib/actions/uploads';
-import { emailProblem } from '@/lib/email-format';
+import { FORMATS } from './fields';
 
 const STAGED = '__staged__:';
 let storage: ReturnType<typeof createClient> | null = null;
@@ -39,7 +39,7 @@ if (typeof document !== 'undefined' && !(window as unknown as { __reqWatch?: boo
     if (field.querySelector('.srv')) field.classList.add('edited');
     // When every flagged field has been corrected, the "Check the highlighted fields" line goes too.
     const card = field.closest('.form-card') || field.closest('form');
-    const emailsOk = card ? [...card.querySelectorAll<HTMLInputElement>('input[data-email]')].every((i) => !i.value.trim() || !emailProblem(i.value)) : true;
+    const emailsOk = card ? [...card.querySelectorAll<HTMLInputElement>('input[data-check]')].every((i) => !i.value.trim() || !FORMATS[i.dataset.check as keyof typeof FORMATS]?.check(i.value)) : true;
     if (card && emailsOk && ![...card.querySelectorAll('.field:not(.edited) .srv, .field-missing')].length) card.classList.add('errors-fixed');
   };
   document.addEventListener('input', clear, true);
@@ -79,12 +79,13 @@ function checkRequired(form: HTMLFormElement): number {
   return missing;
 }
 
-// Email fields with a wrong address (no @, no domain, spaces …): show their message and stop the save.
-function checkEmails(form: HTMLFormElement): number {
+// Formatted fields with a wrong value (email, phone, Federal ID, SSN): show their message and stop the save.
+function checkFormats(form: HTMLFormElement): number {
   let bad = 0;
-  for (const el of form.querySelectorAll<HTMLInputElement>('input[data-email]')) {
+  for (const el of form.querySelectorAll<HTMLInputElement>('input[data-check]')) {
     if (el.offsetParent === null || !el.value.trim()) continue; // empty is handled by the required check
-    if (emailProblem(el.value)) {
+    const spec = FORMATS[el.dataset.check as keyof typeof FORMATS];
+    if (spec && spec.check(el.value)) {
       bad++;
       el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); // the field shows its own message
       if (bad === 1) el.focus();
@@ -135,7 +136,7 @@ export function useFormAction(action: (state: FormState, form: FormData) => Prom
     e.currentTarget.classList.remove('errors-fixed');
     const missing = checkRequired(e.currentTarget);
     if (missing) { setUploadError(`Fill in the ${missing === 1 ? 'required field' : `${missing} required fields`} marked *.`); return; }
-    if (checkEmails(e.currentTarget)) { setUploadError('Correct the email address: it must look like name@company.com.'); return; }
+    if (checkFormats(e.currentTarget)) { setUploadError('Correct the highlighted fields (email, phone, Federal ID or SSN format).'); return; }
     const raw = new FormData(e.currentTarget, submitter && submitter.getAttribute('name') ? submitter : undefined);
     const hasFiles = [...raw.values()].some((v) => v instanceof File && v.size > 0);
     let fd: FormData | string = raw;

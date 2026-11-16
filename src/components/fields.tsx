@@ -4,6 +4,16 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FileChip } from './ui';
 import { emailProblem } from '@/lib/email-format';
+import { einProblem, phoneError, ssnProblem, typeEin, typePhone, typeSsn } from '@/lib/formats';
+
+type FormatKind = 'phone' | 'email' | 'ein' | 'ssn';
+type FormatSpec = { shape: (v: string) => string; check: (v: string) => string | null; placeholder: string; maxLength: number; inputMode: 'tel' | 'email' | 'numeric'; autoComplete?: string };
+export const FORMATS: Record<FormatKind, FormatSpec> = {
+  phone: { shape: typePhone, check: (v) => phoneError(v), placeholder: '(555) 123-4567', maxLength: 14, inputMode: 'tel', autoComplete: 'tel' },
+  email: { shape: (v) => v.replace(/\s/g, ''), check: emailProblem, placeholder: 'name@company.com', maxLength: 254, inputMode: 'email', autoComplete: 'email' },
+  ein: { shape: typeEin, check: einProblem, placeholder: '12-3456789', maxLength: 10, inputMode: 'numeric', autoComplete: 'off' },
+  ssn: { shape: typeSsn, check: ssnProblem, placeholder: '123-45-6789', maxLength: 11, inputMode: 'numeric', autoComplete: 'off' }
+};
 import { PasswordInput } from './PasswordInput';
 
 const UPLOAD_ICON = <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" /></svg>;
@@ -46,24 +56,28 @@ export function Text({ name, label, value, required, readOnly, lock, note, full,
   name: string; label: string; value?: string | number | null; required?: boolean; readOnly?: boolean; lock?: string; note?: ReactNode; full?: boolean;
   placeholder?: string; type?: string; errors?: Errors; autoComplete?: string;
 }) {
-  // Phone fields: digits only, plus + ( ) - and spaces; letters are dropped as they are typed or pasted.
-  const phone = !readOnly && /phone$/.test(name);
-  // Email fields: checked when the user leaves the field (name@company.com: one @, a domain and an extension, no spaces);
-  // once shown, the message updates as they type and disappears when the address is valid. Saving is blocked while it is wrong.
-  const email = !readOnly && /email$/.test(name);
-  const [emailErr, setEmailErr] = useState<string | null>(null);
+  // Formatted fields (US formats, see lib/formats): the value is shaped as it is typed, checked when the user leaves the
+  // field (the message then updates as they type and disappears once it is right), and saving is blocked while it is wrong.
+  //   phone → (555) 123-4567 · ein (Federal ID) → 12-3456789 · ssn → 123-45-6789 · email → name@company.com
+  const kind: FormatKind | null = readOnly ? null : /phone$/.test(name) ? 'phone' : /email$/.test(name) ? 'email' : name === 'ein' ? 'ein' : name === 'ssn' ? 'ssn' : null;
+  const spec = kind ? FORMATS[kind] : null;
+  const [problem, setProblem] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   return (
     <Field label={label} required={required} lock={readOnly ? lock || 'Auto-filled' : undefined} note={note} full={full} error={errors?.[name]} htmlFor={`f-${name}`}>
-      {type === 'password' ? <PasswordInput id={`f-${name}`} name={name} autoComplete={autoComplete} placeholder={placeholder} /> : <input id={`f-${name}`} name={name} type={phone ? 'tel' : type} defaultValue={value ?? ''} readOnly={readOnly} className={readOnly ? 'readonly' : undefined}
-        placeholder={placeholder ?? (phone ? '+1 (555) 123-4567' : email ? 'name@company.com' : undefined)}
-        autoComplete={autoComplete ?? (phone ? 'tel' : email ? 'email' : undefined)}
-        inputMode={phone ? 'tel' : email ? 'email' : undefined} maxLength={phone ? 20 : email ? 254 : undefined} spellCheck={email ? false : undefined}
-        data-email={email ? '1' : undefined} aria-invalid={email && touched && emailErr ? true : undefined}
-        onBlur={email ? (e) => { setTouched(true); setEmailErr(emailProblem(e.currentTarget.value)); } : undefined}
-        onInput={phone ? (e) => { const el = e.currentTarget; const v = el.value.replace(/[^\d+()\-\s]/g, ''); if (v !== el.value) el.value = v; }
-          : email ? (e) => { const el = e.currentTarget; if (/\s/.test(el.value)) el.value = el.value.replace(/\s/g, ''); if (touched) setEmailErr(emailProblem(el.value)); } : undefined} />}
-      {email && touched && emailErr ? <span className="field-error email-err">{emailErr}</span> : null}
+      {type === 'password' ? <PasswordInput id={`f-${name}`} name={name} autoComplete={autoComplete} placeholder={placeholder} /> : <input id={`f-${name}`} name={name} type={kind === 'phone' ? 'tel' : type} defaultValue={value ?? ''} readOnly={readOnly} className={readOnly ? 'readonly' : undefined}
+        placeholder={(kind === 'ssn' && placeholder) || spec?.placeholder || placeholder}
+        autoComplete={autoComplete ?? spec?.autoComplete}
+        inputMode={spec?.inputMode} maxLength={spec?.maxLength} spellCheck={kind ? false : undefined}
+        data-check={kind || undefined} aria-invalid={kind && touched && problem ? true : undefined}
+        onBlur={spec ? (e) => { setTouched(true); setProblem(e.currentTarget.value.trim() ? spec.check(e.currentTarget.value) : null); } : undefined}
+        onInput={spec ? (e) => {
+          const el = e.currentTarget;
+          const shaped = spec.shape(el.value);
+          if (shaped !== el.value) el.value = shaped;
+          if (touched) setProblem(el.value.trim() ? spec.check(el.value) : null);
+        } : undefined} />}
+      {kind && touched && problem ? <span className="field-error format-err">{problem}</span> : null}
     </Field>
   );
 }

@@ -112,7 +112,7 @@ export function reviewStatus(sub: Submission | null, ci: ClientInvoice | null): 
 }
 export function reviewNote(sub: Submission | null, ci: ClientInvoice | null, type: Person['type']) {
   const docLabel = type === 'consultant' ? 'vendor invoice' : type === 'w2' ? 'timesheet' : 'resource invoice';
-  if (!ci && !sub) return 'Waiting for both documents';
+  if (!ci && !sub) return 'Waiting for both invoices';
   if (!ci) return 'Waiting for client invoice';
   if (!sub) return `Waiting for ${docLabel}`;
   if (sub.status === 'in_progress') return 'Ready for review';

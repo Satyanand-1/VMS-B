@@ -33,7 +33,7 @@ export async function reviewAction(_: FormState, form: FormData): Promise<FormSt
   if (!canSeeClient(s, sub.client_id)) return { error: 'You can review only your own clients.' };
   if (sub.status !== 'in_progress') return { error: 'This submission was already reviewed.' };
   const ci = (await db().from('client_invoices').select('*').eq('person_id', sub.person_id).eq('period', sub.period).maybeSingle()).data as { hours: number } | null;
-  if (!ci) return { error: 'Both documents are needed before this can be reviewed.' };
+  if (!ci) return { error: 'Both invoices are needed before this can be reviewed.' };
   const person = must(await db().from('people').select('id,full_name,vendor_id').eq('id', sub.person_id).single(), 'person') as Person;
   const what = `${sub.ref} (${person.full_name}, ${monthLong(sub.period)})`;
   if (decision === 'approve') {
@@ -78,6 +78,41 @@ export async function reviewClientInvoiceAction(_: FormState, raw: FormData): Pr
   await notifyStaff(s, [await amOfPerson(personId)], { title: 'Client invoice uploaded', body: `${person.full_name} · ${monthLong(period)} · ${hours} h.`, link: `/invoice-management?m=review&person=${personId}&period=${period}` });
   revalidatePath('/invoice-management');
   redirect(`/invoice-management?m=review&person=${personId}&period=${period}`);
+}
+
+// Correct a client invoice (hours and/or file) before the month is approved (Super Admin, or the client's Account Manager).
+export async function updateClientInvoiceAction(_: FormState, raw: FormData): Promise<FormState> {
+  const s = await requireSession(['superadmin', 'accountmanager']);
+  let form: FormData;
+  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  const ci = (await db().from('client_invoices').select('*').eq('id', String(form.get('client_invoice_id'))).maybeSingle()).data as
+    { id: string; client_id: string; person_id: string; period: string; hours: number; file_name: string; file_path: string } | null;
+  if (!ci || !canSeeClient(s, ci.client_id)) return { error: 'Client invoice not found.' };
+  const approved = (await db().from('submissions').select('id').eq('person_id', ci.person_id).eq('period', ci.period).eq('status', 'approved').limit(1)).data?.length;
+  if (approved) return { error: 'This month is already approved, so the client invoice can no longer be changed.' };
+  const hours = Number(String(form.get('hours') || '').trim());
+  const f = form.get('file');
+  const file = f instanceof File && f.size > 0 ? f : null;
+  const fe: Record<string, string> = {};
+  if (!(hours > 0 && hours <= 744)) fe.hours = 'Enter the client billable hours (more than 0).';
+  if (file) { const p = await checkFile(file); if (p) fe.file = p; }
+  if (Object.keys(fe).length) return { fieldErrors: fe, error: 'Check the highlighted fields.' };
+  const upd: Record<string, unknown> = { hours: roundHalfUp(hours) };
+  if (file) {
+    const stored = await storeFile(`client-invoices/${ci.client_id}/${ci.period}`, file);
+    upd.file_path = stored.path; upd.file_name = stored.name; upd.uploaded_by = s.account.id;
+  }
+  must(await db().from('client_invoices').update(upd).eq('id', ci.id), 'update client invoice');
+  const person = (await db().from('people').select('full_name').eq('id', ci.person_id).single()).data as { full_name: string };
+  await audit(s, 'update', 'client_invoice', ci.person_id, `edited the ${monthLong(ci.period)} client invoice for ${person.full_name}`,
+    { hours: Number(ci.hours), file_name: ci.file_name }, { hours: upd.hours, file_name: upd.file_name ?? ci.file_name });
+  revalidatePath('/invoice-management');
+  revalidatePath('/clients');
+  const back = safeBack(form.get('back'), '/invoice-management');
+  const q = new URLSearchParams(back.split('?')[1] || '');
+  q.set('m', 'review'); q.set('person', ci.person_id); q.set('period', ci.period);
+  q.set('flash', `Client invoice updated|${person.full_name} · ${monthLong(ci.period)} · ${roundHalfUp(hours)} h.`);
+  redirect(`/invoice-management?${q.toString()}`);
 }
 
 /* ---------------- Submissions by vendors and resources (INV-1 … INV-12) ---------------- */

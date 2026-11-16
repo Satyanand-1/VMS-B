@@ -79,5 +79,7 @@ export async function uploadOwnDocumentAction(_: FormState, raw: FormData): Prom
   const who = s.persona === 'vendor' ? ((await db().from('vendors').select('name').eq('id', d.owner_id).single()).data as { name: string } | null)?.name : s.account.full_name;
   await notifyStaff(s, [am], { title: `${d.doc_type} uploaded by ${who}`, body: 'A new version is on file. See the Document Tracker.', link: '/documents' });
   revalidatePath('/my-documents');
-  redirect(`/my-documents?flash=${encodeURIComponent(`${d.doc_type} uploaded|The earlier version is kept in history.`)}`);
+  revalidatePath('/profile');
+  const page = s.persona === 'vendor' ? '/profile' : '/my-documents'; // vendor documents are on Company Profile
+  redirect(`${page}?flash=${encodeURIComponent(`${d.doc_type} uploaded|The earlier version is kept in history.`)}${s.persona === 'vendor' ? '#documents' : ''}`);
 }

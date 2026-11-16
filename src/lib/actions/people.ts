@@ -13,6 +13,7 @@ import { savePaymentTerm } from '../domain/terms';
 import { badDate, docDateErrors, durationError, phoneError, rangeError } from '../validate';
 import { amOfPerson, notifyStaff } from '../domain/notify';
 import { likeExact, safeBack } from '../safe';
+import { ssnProblem, usPhone } from '../formats';
 import type { FormState } from './auth';
 
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
@@ -31,8 +32,9 @@ function personFields(form: FormData) {
   return {
     full_name: String(form.get('full_name') || '').trim(),
     email: String(form.get('email') || '').trim().toLowerCase(),
-    phone: String(form.get('phone') || '').trim() || null,
+    phone: usPhone(String(form.get('phone') || '')) || null,
     address: String(form.get('address') || '').trim() || null,
+    ssnRaw: String(form.get('ssn') || '').trim(),
     ssn: String(form.get('ssn') || '').replace(/\D/g, ''),
     role_title: String(form.get('role_title') || '').trim(),
     client_id: String(form.get('client_id') || '') || null,
@@ -53,7 +55,8 @@ async function validate(f: ReturnType<typeof personFields>, type: PType, mode: '
   if (!(f.hourly_rate > 0)) fe.hourly_rate = 'Enter the hourly rate.';
   if (type !== 'consultant' && !f.client_id) fe.client_id = 'Choose the client.';
   if (type !== 'consultant' && !f.address) fe.address = 'Enter the address.';
-  if (type !== 'consultant' && mode === 'add' && f.ssn.length !== 9) fe.ssn = 'Enter the 9-digit SSN.';
+  // SSN: required when adding a W-2 / 1099 resource; on Edit only when a new one is typed.
+  if (type !== 'consultant' && (mode === 'add' || f.ssnRaw)) { const e = ssnProblem(f.ssnRaw); if (e) fe.ssn = e; }
   const range = rangeError(f.start_date, f.end_date);
   if (range) fe.end_date = range;
   const ph = phoneError(f.phone);
@@ -126,7 +129,7 @@ export async function createPersonAction(_: FormState, raw: FormData): Promise<F
   for (const x of extraDocs(form)) if (x.file && x.name) await addDocumentVersion(s, 'person', p.id, x.name, x.file, { validFrom: x.start, validTo: x.end, ownerLabel: f.full_name });
 
   const label = type === 'consultant' ? 'Consultant' : type === 'w2' ? 'W-2 resource' : '1099 resource';
-  await audit(s, 'create', 'person', p.id, `created ${label.toLowerCase()} ${f.full_name}`, null, { ...f, ssn: undefined });
+  await audit(s, 'create', 'person', p.id, `created ${label.toLowerCase()} ${f.full_name}`, null, { ...f, ssn: undefined, ssnRaw: undefined });
   await notifyStaff(s, [await amOfPerson(p.id)], { title: `New ${label.toLowerCase()}: ${f.full_name}`, body: f.client_id ? 'Mapped to a client and ready for monthly submissions.' : 'Not mapped to a client yet.',
     link: type === 'consultant' ? `/vendors?m=view-person&id=${p.id}` : `/resources/${type === 'w2' ? 'w2' : '1099'}?m=view-person&id=${p.id}` });
   revalidatePath(back.split('?')[0]);

@@ -6,7 +6,8 @@ import { requireSession, canSeePerson, type Session } from '@/lib/session';
 import { activeSubmission, monthOptions, clientInvoicesFor, clientsInScope, currentPeriod, getPerson, maps, peopleInScope, reviewNote, reviewStatus, submissionsFor,
   type ClientInvoice, type Person, type Submission } from '@/lib/data';
 import { monthLong } from '@/lib/format';
-import { ReviewActions, ReviewClientInvoice } from './ReviewActions';
+import { EditClientInvoice, ReviewActions, ReviewClientInvoice } from './ReviewActions';
+import { DocPreview } from '@/components/DocPreview';
 
 const TABS = ['Vendor Consultants', 'W-2', '1099'];
 const TYPES: Person['type'][] = ['consultant', 'w2', 'w1099'];
@@ -80,12 +81,8 @@ async function reviewModal(s: Session, personId: string, period: string, closeHr
   const both = !!(sub && ci);
   const match = both && Number(sub!.hours) === Number(ci!.hours);
   const docFile = sub ? (p.type === 'w2' ? { key: `st-${sub.id}`, name: sub.timesheet_name } : { key: `si-${sub.id}`, name: sub.invoice_name }) : null;
-  const paper = (key: string, name: string) => (
-    <>
-      <div className="review-paper"><span className="doc-badge">{name.split('.').pop()?.toUpperCase()}</span><div className="review-paper-name">{name}</div><div className="review-lines"><i /><i /><i /><i /><i /></div></div>
-      <div className="row-actions"><a className="link-btn" href={`/api/files/${key}`} target="_blank" rel="noreferrer">View</a><a className="link-btn" href={`/api/files/${key}?download=1`}>Download</a></div>
-    </>
-  );
+  // The client invoice can be corrected (hours and/or file) until the month is approved.
+  const canEditCi = !!ci && sub?.status !== 'approved';
   return (
     <Modal title={`Review · ${p.full_name}`} description={`Compare the client invoice with the ${docLabel.toLowerCase()} and approve or reject.`} closeHref={closeHref} wide>
       <div className="modal-content">
@@ -99,15 +96,18 @@ async function reviewModal(s: Session, personId: string, period: string, closeHr
         {sub?.status === 'rejected' && sub.reject_reason ? (
           <div className="review-reason"><b>Rejection reason:</b> {sub.reject_reason}<br /><span className="person-sub">Waiting for the {who} to resubmit.</span></div>
         ) : null}
-        <div className="review-grid">
+        {/* Both documents side by side, each in a viewer of the same size that scrolls on its own. */}
+        <div className="review-grid review-docs">
           <div className="review-doc">
-            <div className="review-doc-title">Client invoice</div>
-            {ci ? paper(`ci-${ci.id}`, ci.file_name) : <><div className="review-missing">The client invoice is not uploaded yet. Upload it here.</div><ReviewClientInvoice personId={p.id} period={period} /></>}
+            <div className="review-doc-title">Client invoice{canEditCi ? <EditClientInvoice ciId={ci!.id} hours={Number(ci!.hours)} back={closeHref} /> : null}</div>
+            {ci ? <DocPreview fileKey={`ci-${ci.id}`} name={ci.file_name} />
+              : <><div className="review-missing">The client invoice is not uploaded yet. Upload it here.</div><ReviewClientInvoice personId={p.id} period={period} /></>}
           </div>
           <div className="review-doc">
             <div className="review-doc-title">{docLabel}</div>
-            {docFile?.name ? paper(docFile.key, docFile.name) : <div className="review-missing">The {who} has not submitted the {docLabel.toLowerCase()} yet.</div>}
-            {sub && p.type !== 'w2' && sub.timesheet_name ? <div className="person-sub">Timesheet: <a className="link-btn" href={`/api/files/st-${sub.id}`} target="_blank" rel="noreferrer">{sub.timesheet_name}</a></div> : null}
+            {docFile?.name ? <DocPreview fileKey={docFile.key} name={docFile.name}
+              extra={sub && p.type !== 'w2' && sub.timesheet_name ? <div className="person-sub">Timesheet: <a className="link-btn" href={`/api/files/st-${sub.id}`} target="_blank" rel="noreferrer">{sub.timesheet_name}</a></div> : null} />
+              : <div className="review-missing">The {who} has not submitted the {docLabel.toLowerCase()} yet.</div>}
           </div>
         </div>
         <div className="review-grid">
@@ -116,7 +116,7 @@ async function reviewModal(s: Session, personId: string, period: string, closeHr
         </div>
         <div className={`review-match ${both ? (match ? 'ok' : 'bad') : ''}`}>
           {both ? (match ? `Hours match: ${Number(ci!.hours)} h on both.` : `Hours do not match: client ${Number(ci!.hours)} h, ${who} ${Number(sub!.hours)} h.`)
-            : 'Both documents are needed before this can be reviewed. Status stays In Progress.'}
+            : 'Both invoices are needed before this can be reviewed. Status stays In Progress.'}
         </div>
         {both && sub!.status === 'in_progress' ? <ReviewActions submissionId={sub!.id} back={closeHref} /> : null}
         {both && sub!.status !== 'in_progress' ? <Muted>{sub!.status === 'approved' ? 'Approved — no further action.' : `Rejected — the ${who} corrects and resubmits it.`}</Muted> : null}

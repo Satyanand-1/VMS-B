@@ -49,7 +49,8 @@ export async function createLogin(s: Session, opts: {
   await audit(s, 'invite', 'account', data.user.id, `${sent ? 'emailed' : 'created (email not sent)'} login details for ${opts.name} (${opts.email})`);
   // Welcome note in the new user's bell, with where to start.
   const start = opts.role === 'account_manager' ? { body: 'Your clients and vendors are on My Clients and My Vendors.', link: '/dashboard' }
-    : { body: 'Upload your documents on Documents, then submit each month from the menu.', link: '/my-documents' };
+    : opts.role === 'vendor' ? { body: 'Upload your company documents (W-9, COI, ACH) on Company Profile, then submit invoices each month.', link: '/profile' }
+    : { body: 'Upload your documents on My Documents, then submit each month from the menu.', link: '/my-documents' };
   await notifyUsers([data.user.id], { title: 'Welcome to Arkhya Tech VMS', ...start });
   return { sent, email: opts.email, password: opts.password };
 }

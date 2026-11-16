@@ -14,6 +14,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   `img-src 'self' data: blob: ${supabase}`,
+  // Invoice Management shows PDFs inside the page (from the app's file links, which redirect to private storage).
+  `frame-src 'self' ${supabase}`,
   `connect-src 'self' ${supabase}${dev ? " ws: http://127.0.0.1:* http://localhost:*" : ""}`,
   "frame-ancestors 'none'",   // the app cannot be embedded in another site (clickjacking)
   "form-action 'self'",

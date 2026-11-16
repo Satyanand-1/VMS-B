@@ -10,6 +10,7 @@ import { audit } from '../audit';
 import { sendEmail } from '../email';
 import { createLogin, loginNote, passwordFromForm } from '../domain/accounts';
 import { phoneError } from '../validate';
+import { usPhone } from '../formats';
 import type { FormState } from './auth';
 
 const flash = (title: string, text: string) => `flash=${encodeURIComponent(`${title}|${text}`)}`;
@@ -30,7 +31,7 @@ export async function createAmAction(_: FormState, form: FormData): Promise<Form
   const s = await requireSession(['superadmin']);
   const name = String(form.get('full_name') || '').trim();
   const email = String(form.get('email') || '').trim().toLowerCase();
-  const phone = String(form.get('phone') || '').trim() || null;
+  const phone = usPhone(String(form.get('phone') || '')) || null;
   const clients = form.getAll('clients').map(String);
   const fe: Record<string, string> = {};
   if (!name) fe.full_name = 'Enter the full name.';
@@ -61,7 +62,7 @@ export async function updateAmAction(_: FormState, form: FormData): Promise<Form
   if (!before || before.role !== 'account_manager') return { error: 'Account manager not found.' };
   const name = String(form.get('full_name') || '').trim();
   const email = String(form.get('email') || '').trim().toLowerCase();
-  const phone = String(form.get('phone') || '').trim() || null;
+  const phone = usPhone(String(form.get('phone') || '')) || null;
   const status = String(form.get('status') || before.status);
   const clients = form.getAll('clients').map(String);
   const fe: Record<string, string> = {};

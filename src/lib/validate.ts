@@ -1,15 +1,7 @@
 // Shared server-side checks (PRD §7 validation rules).
 import { extraDocs } from './domain/documents';
 
-// Phone: 7–15 digits; only digits, +, (, ), - and spaces are allowed.
-export function phoneError(v: string | null | undefined, required = false): string | null {
-  const p = (v || '').trim();
-  if (!p) return required ? 'Enter the phone number.' : null;
-  if (/[^\d+()\-\s]/.test(p)) return 'Enter a phone number using digits only (+, ( ), - and spaces are allowed).';
-  const n = p.replace(/\D/g, '').length;
-  if (n < 7 || n > 15) return 'Enter a valid phone number (7 to 15 digits).';
-  return null;
-}
+export { usPhone, phoneError, einProblem, ssnProblem } from './formats';
 
 // A real calendar date between 1900 and 2100 (YYYY-MM-DD from the date fields).
 export function badDate(v: string | null | undefined): boolean {

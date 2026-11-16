@@ -41,8 +41,8 @@ export function navFor(p: Persona): NavItem[] {
 }
 
 export function profileMenuFor(p: Persona): { label: string; href: string }[] {
-  if (p === 'vendor') return [
-    { label: 'Documents', href: '/my-documents' }, { label: 'Company Profile', href: '/profile' }, { label: 'Change Password', href: '/change-password' }];
+  // Vendor: company details and company documents are one page (Company Profile).
+  if (p === 'vendor') return [{ label: 'Company Profile', href: '/profile' }, { label: 'Change Password', href: '/change-password' }];
   if (p === 'w2' || p === 'w9') return [{ label: 'My Documents', href: '/my-documents' }, { label: 'Change Password', href: '/change-password' }];
   return [{ label: 'Change Password', href: '/change-password' }]; // Super Admin / Account Manager
 }

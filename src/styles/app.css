@@ -92,3 +92,21 @@ form > button.profile-menu-item { width: 100%; }
 .idle-warning .alert-text { color: var(--muted, #627d98); font-size: 0.88rem; margin-top: 2px; }
 .idle-warning .btn { white-space: nowrap; }
 @media (max-width: 640px) { .idle-warning { left: 16px; right: 16px; bottom: 16px; max-width: none; } }
+
+/* Invoice Management review: both documents side by side, same size, each scrolls on its own */
+.review-docs { align-items: stretch; }
+.review-docs .review-doc { min-width: 0; }
+.review-doc-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.doc-preview { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.doc-viewer { height: min(62vh, 640px); min-height: 320px; overflow: auto; border: 1px solid var(--line, #d9e2ec); border-radius: 8px; background: #f3f6fa; }
+.doc-viewer iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+.doc-viewer img { display: block; max-width: 100%; height: auto; margin: 0 auto; background: #fff; }
+.doc-viewer-none { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px; text-align: center; }
+.doc-viewer-none .doc-badge { background: #c2410c; color: #fff; font-size: 0.7rem; font-weight: 700; border-radius: 4px; padding: 2px 8px; }
+.doc-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.doc-preview-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; font-weight: 600; }
+.ci-edit { border: 1px dashed var(--line, #d9e2ec); border-radius: 10px; padding: 12px; margin: 4px 0 8px; display: flex; flex-direction: column; gap: 10px; font-weight: 400; }
+@media (max-width: 860px) { .review-docs { grid-template-columns: 1fr; } .doc-viewer { height: 60vh; } }
+.review-doc-title { flex-wrap: wrap; }
+.review-doc-title .ci-edit { flex-basis: 100%; }
+.profile-documents { margin-top: 20px; scroll-margin-top: 16px; }
