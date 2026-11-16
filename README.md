@@ -11,12 +11,13 @@ Requirements: Node.js 20+, Docker Desktop (running).
 cd web
 npm install
 npm run db:start     # starts local Supabase in Docker (first time downloads images)
-npm run db:reset     # fresh, empty system with only the Super Admin (a.krishnan@arkhyatech.com / password123)
-# or: npm run db:reset:sample   # loads the prototype's sample data instead (set NEXT_PUBLIC_DEMO_LOGINS=1 for the demo chips)
+npm run db:reset     # fresh, empty system with only the Super Admin (password: SUPER_ADMIN_PASSWORD in .env.local, or a printed temporary one)
+# or: npm run db:reset:sample   # loads the prototype's sample data instead (all sample accounts use SEED_PASSWORD from .env.local)
 npm run dev          # http://localhost:3000
 ```
 
-`.env.local` holds the local Supabase keys (Supabase CLI defaults), the encryption key and the SMTP settings. It is not committed.
+`.env.local` holds the local Supabase keys (Supabase CLI defaults), the encryption key, the SMTP settings, `SESSION_SECRET` and the local
+passwords `SUPER_ADMIN_PASSWORD` / `SEED_PASSWORD`. It is never committed; no password or key is written in the code.
 
 | Local service | URL |
 |---|---|
@@ -27,7 +28,7 @@ npm run dev          # http://localhost:3000
 Vendor consultants have no login: the Super Admin / Account Manager adds them, and their vendor submits their invoices and timesheets.
 Login details (username + temporary password) are emailed only to vendors and W-2 / 1099 resources.
 
-## Sample sign-ins after `db:reset:sample` (password `password123`)
+## Sample sign-ins after `db:reset:sample` (password: `SEED_PASSWORD` from `.env.local`)
 
 | Role | Email |
 |---|---|
@@ -39,8 +40,6 @@ Login details (username + temporary password) are emailed only to vendors and W-
 | New vendor (must set a new password at first sign-in) | contracts@harborviewstaffing.com |
 | Expired password (day 31) | mprice@ridgelinetalent.com |
 | Inactive vendor | billing@orbitsystems.com |
-
-The sign-in page shows these as one-click chips while `NEXT_PUBLIC_DEMO_LOGINS=1`. Remove that variable outside development.
 
 ## What is where
 
@@ -70,9 +69,11 @@ The sign-in page shows these as one-click chips while `NEXT_PUBLIC_DEMO_LOGINS=1
 1. Create a Supabase project. Apply the migrations: `npx supabase link --project-ref <ref>` then `npx supabase db push`.
 2. Host the Next.js app (Vercel recommended) with these environment variables:
    `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ENCRYPTION_KEY` (64 hex chars, new per environment),
-   `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `APP_BASE_URL`, `CRON_SECRET`.
+   `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `APP_BASE_URL`, `CRON_SECRET` (16+ characters),
+   `SESSION_SECRET` (64 hex chars; signs the 15-minute activity cookie; recommended — without it `ENCRYPTION_KEY` is used).
 3. Create the first Super Admin (Supabase Auth user + a `user_accounts` row with role `super_admin`). Everyone else is created from the app.
-4. Schedule daily `POST /api/cron/document-expiry`, `/api/cron/password-expiry` and `/api/cron/audit-retention` with `Authorization: Bearer <CRON_SECRET>`.
+4. Schedule daily `POST /api/cron/document-expiry`, `/api/cron/password-expiry`, `/api/cron/audit-retention` and `/api/cron/staging-cleanup`
+   with `Authorization: Bearer <CRON_SECRET>`.
 
 ## Scripts
 

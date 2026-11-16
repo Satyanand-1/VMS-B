@@ -50,7 +50,7 @@ export async function createAmAction(_: FormState, form: FormData): Promise<Form
   if (clients.length) must(await db().from('client_account_managers').insert(clients.map((c) => ({ client_id: c, account_manager_id: id }))), 'clients');
   await audit(s, 'create', 'account_manager', id, `added account manager ${name}`);
   revalidatePath('/settings/users');
-  redirect(`/settings/users?${flash(login.sent ? 'Account manager added · login details sent' : 'Account manager added · email not sent', `${name} was added. ${await loginNote(login)}`)}`);
+  redirect(`/settings/users?${flash(login.sent ? 'Account manager added · login details sent' : 'Account manager added · email not sent', `${name} was added. ${await loginNote(login, s)}`)}`);
 }
 
 // ADM-4: Edit name, email, phone, status and clients. A client is never left without an account manager.
@@ -63,7 +63,7 @@ export async function updateAmAction(_: FormState, form: FormData): Promise<Form
   const name = String(form.get('full_name') || '').trim();
   const email = String(form.get('email') || '').trim().toLowerCase();
   const phone = usPhone(String(form.get('phone') || '')) || null;
-  const status = String(form.get('status') || before.status);
+  const status = (['active', 'inactive', 'invited'] as string[]).includes(String(form.get('status'))) ? String(form.get('status')) : before.status;
   const clients = form.getAll('clients').map(String);
   const fe: Record<string, string> = {};
   if (!name) fe.full_name = 'Enter the full name.';
@@ -128,7 +128,7 @@ export async function deleteAmAction(_: FormState, form: FormData): Promise<Form
   await db().from('people').update({ account_manager_id: to || null }).eq('account_manager_id', id);
   await db().from('client_account_managers').delete().eq('account_manager_id', id);
   const { error } = await db().auth.admin.deleteUser(id);
-  if (error) return { error: error.message };
+  if (error) { console.error('delete account manager', error.message); return { error: 'The account could not be deleted. Try again.' }; }
   await audit(s, 'delete', 'account_manager', id, `deleted account manager ${am.full_name}${hasWork ? ' and reassigned their clients and vendors' : ''}`);
   revalidatePath('/settings/users');
   redirect(`/settings/users?${flash('Account manager deleted', `${am.full_name} was removed.${hasWork ? ' Their clients and vendors were reassigned.' : ''}`)}`);
@@ -145,7 +145,7 @@ export async function acceptInviteAction(_: FormState, form: FormData): Promise<
   const inv = (await db().from('invites').select('*').eq('token_hash', hash(token)).maybeSingle()).data as { id: string; user_id: string; expires_at: string; used_at: string | null; voided_at: string | null } | null;
   if (!inv || inv.used_at || inv.voided_at || new Date(inv.expires_at) < new Date()) return { error: 'This invite link is no longer valid. Ask the Super Admin to resend it.' };
   const { error } = await db().auth.admin.updateUserById(inv.user_id, { password: pw });
-  if (error) return { error: error.message };
+  if (error) { console.error('invite password', error.message); return { error: 'The password could not be saved. Try a different password.' }; }
   await db().from('invites').update({ used_at: new Date().toISOString() }).eq('id', inv.id);
   await db().from('user_accounts').update({ status: 'active', password_set_at: new Date().toISOString() }).eq('id', inv.user_id);
   await audit(null, 'update', 'account_manager', inv.user_id, 'account manager set a password from the invite link');

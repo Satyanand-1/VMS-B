@@ -56,10 +56,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
     done = count || 0;
     await audit(null, 'delete', 'audit_log', null, `retention job removed ${done} audit entries older than 120 days`);
   } else if (job === 'staging-cleanup') {
+    // staging/<user id>/<file>: look inside each user's folder (and any loose files from before).
     const cutoff = Date.now() - 24 * 3600000;
-    const { data } = await db().storage.from(BUCKET).list('staging', { limit: 1000, sortBy: { column: 'created_at', order: 'asc' } });
-    const old = (data || []).filter((f) => f.created_at && new Date(f.created_at).getTime() < cutoff).map((f) => `staging/${f.name}`);
-    if (old.length) await db().storage.from(BUCKET).remove(old);
+    const old: string[] = [];
+    const top = (await db().storage.from(BUCKET).list('staging', { limit: 1000 })).data || [];
+    for (const e of top) {
+      if (e.id) { if (e.created_at && new Date(e.created_at).getTime() < cutoff) old.push(`staging/${e.name}`); continue; }
+      const files = (await db().storage.from(BUCKET).list(`staging/${e.name}`, { limit: 1000 })).data || [];
+      for (const f of files) if (f.id && f.created_at && new Date(f.created_at).getTime() < cutoff) old.push(`staging/${e.name}/${f.name}`);
+    }
+    for (let i = 0; i < old.length; i += 100) await db().storage.from(BUCKET).remove(old.slice(i, i + 100));
     done = old.length;
   } else {
     return new NextResponse('Unknown job', { status: 404 });

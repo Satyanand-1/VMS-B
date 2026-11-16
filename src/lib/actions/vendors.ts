@@ -33,7 +33,7 @@ async function checkDocs(form: FormData, names: string[], fe: Record<string, str
 export async function createVendorAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   const v = {
     name: String(form.get('name') || '').trim(), address: String(form.get('address') || '').trim(), email: String(form.get('email') || '').trim().toLowerCase(),
     einRaw: String(form.get('ein') || '').trim(), ein: String(form.get('ein') || '').replace(/\D/g, ''), phone: usPhone(String(form.get('phone') || '')), state: String(form.get('state_of_incorporation') || ''),
@@ -84,14 +84,14 @@ export async function createVendorAction(_: FormState, raw: FormData): Promise<F
   try { login = await createLogin(s, { email: v.email, name: v.signatory, role: 'vendor', password: pw.password!, vendorId: row.id }); }
   catch (e) { return { error: (e as Error).message }; }
   revalidatePath('/vendors');
-  redirect(`/vendors?${flash(login.sent ? 'Vendor added · login details sent' : 'Vendor added · email not sent', `${v.name} was added. ${await loginNote(login)}`)}`);
+  redirect(`/vendors?${flash(login.sent ? 'Vendor added · login details sent' : 'Vendor added · email not sent', `${v.name} was added. ${await loginNote(login, s)}`)}`);
 }
 
 // Edit Vendor (Super Admin; Account Manager for own vendors). Name, EIN and email are admin-managed and read-only.
 export async function updateVendorAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   const id = String(form.get('id'));
   if (!canSeeVendor(s, id)) return { error: 'You do not have access to this vendor.' };
   const before = must(await db().from('vendors').select('*').eq('id', id).single(), 'vendor') as Record<string, unknown> & { name: string };
@@ -99,7 +99,7 @@ export async function updateVendorAction(_: FormState, raw: FormData): Promise<F
     address: String(form.get('address') || '').trim(), phone: usPhone(String(form.get('phone') || '')),
     state_of_incorporation: String(form.get('state_of_incorporation') || ''), signatory_name: String(form.get('signatory_name') || '').trim(),
     signatory_phone: usPhone(String(form.get('signatory_phone') || '')) || null, payment_term: String(form.get('payment_term') || '').trim(),
-    status: String(form.get('status') || before.status)
+    status: (['active', 'onboarding', 'inactive'] as string[]).includes(String(form.get('status'))) ? String(form.get('status')) : before.status
   };
   if (s.persona === 'superadmin') upd.account_manager_id = String(form.get('account_manager_id') || before.account_manager_id);
   const fe: Record<string, string> = {};

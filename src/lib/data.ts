@@ -1,4 +1,5 @@
 import 'server-only';
+import { ownValue } from './safe';
 import { db, must } from './supabase/admin';
 import { addDays, daysBetween, fmtDate, todayISO } from './format';
 import { canSeePerson, type Session } from './session';
@@ -18,7 +19,7 @@ export type ClientInvoice = { id: string; client_id: string; person_id: string; 
 export const TYPE_LABEL = { consultant: 'Vendor Consultant', w2: 'W-2 Employee', w1099: '1099 Contractor' } as const;
 export const STATUS_LABEL: Record<string, string> = { active: 'Active', onboarding: 'Onboarding', invited: 'Invited', inactive: 'Inactive', ended: 'Ended',
   in_progress: 'In Progress', approved: 'Approved', rejected: 'Rejected', superseded: 'Superseded' };
-export const label = (s: string) => STATUS_LABEL[s] || s;
+export const label = (s: string) => ownValue(STATUS_LABEL, s) || s;
 
 /* ---------------- scoped lists ---------------- */
 export async function clientsInScope(s: Session): Promise<Client[]> {

@@ -4,7 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 import { createCipheriv, randomBytes } from 'crypto';
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-const PASSWORD = 'password123';
+// Password for every sample account: SEED_PASSWORD in .env.local (local development only; never committed).
+const PASSWORD = process.env.SEED_PASSWORD;
+if (!PASSWORD) throw new Error('Set SEED_PASSWORD in .env.local (the password for all sample accounts).');
 const BUCKET = 'vms-files';
 
 const ok = (res, what) => { if (res.error) throw new Error(`${what}: ${res.error.message}`); return res.data; };

@@ -61,7 +61,7 @@ export async function notApplicableAction(_: FormState, form: FormData): Promise
 export async function uploadOwnDocumentAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['vendor', 'w2', 'w9']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   const d = (await db().from('documents').select('id,owner_kind,owner_id,doc_type,uploader_kind').eq('id', String(form.get('document_id'))).maybeSingle()).data as DocRow | null;
   if (!d) return { error: 'Document not found.' };
   const mine = s.persona === 'vendor' ? d.owner_kind === 'vendor' && d.owner_id === s.account.vendor_id && d.uploader_kind === 'vendor'

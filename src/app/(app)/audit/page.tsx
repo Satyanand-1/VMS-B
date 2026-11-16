@@ -5,6 +5,8 @@ import { requireSession } from '@/lib/session';
 import { db, must } from '@/lib/supabase/admin';
 import { fmtDate } from '@/lib/format';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuids = (ids: string[]) => ids.filter((x) => UUID.test(x)).join(',') || '00000000-0000-0000-0000-000000000000';
 const ROLE: Record<string, string> = { super_admin: 'Super Admin', account_manager: 'Account Manager', vendor: 'Vendor', resource: 'Resource', system: 'System' };
 
 // AUD-1: append-only log. Super Admin sees everything; an Account Manager sees their own actions and those of their vendors and resources.
@@ -14,7 +16,8 @@ export default async function AuditPage() {
   if (s.persona === 'accountmanager') {
     const [vendors, people] = await Promise.all([
       db().from('user_accounts').select('id').in('vendor_id', s.scope.vendorIds.length ? s.scope.vendorIds : ['00000000-0000-0000-0000-000000000000']),
-      db().from('people').select('id').or(`client_id.in.(${s.scope.clientIds.join(',') || '00000000-0000-0000-0000-000000000000'}),vendor_id.in.(${s.scope.vendorIds.join(',') || '00000000-0000-0000-0000-000000000000'})`)
+      // Only well-formed UUIDs go into the filter text (they come from the database, but never trust string-built filters).
+      db().from('people').select('id').or(`client_id.in.(${uuids(s.scope.clientIds)}),vendor_id.in.(${uuids(s.scope.vendorIds)})`)
     ]);
     const personAccounts = await db().from('user_accounts').select('id').in('person_id', (people.data || []).map((p) => p.id).concat('00000000-0000-0000-0000-000000000000'));
     const actors = [s.account.id, ...(vendors.data || []).map((v) => v.id), ...(personAccounts.data || []).map((p) => p.id)];

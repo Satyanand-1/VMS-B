@@ -58,7 +58,7 @@ export function TextLink({ href, children }: { href: string; children: ReactNode
 export function FileLinks({ fileKey, name, download = true }: { fileKey: string; name: string; download?: boolean }) {
   return (
     <div className="row-actions">
-      <a className="link-btn icon-btn" href={`/api/files/${fileKey}`} target="_blank" rel="noreferrer" aria-label="View" title={`View ${name}`}>{EYE}</a>
+      <a className="link-btn icon-btn" href={`/api/files/${fileKey}`} target="_blank" rel="noopener noreferrer" aria-label="View" title={`View ${name}`}>{EYE}</a>
       {download ? <a className="link-btn icon-btn" href={`/api/files/${fileKey}?download=1`} aria-label="Download" title="Download">{DOWNLOAD_ICON}</a> : null}
     </div>
   );

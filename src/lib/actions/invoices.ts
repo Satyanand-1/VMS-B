@@ -29,6 +29,7 @@ async function notifySubmitter(person: Pick<Person, 'id' | 'vendor_id' | 'full_n
 export async function reviewAction(_: FormState, form: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin', 'accountmanager']);
   const decision = String(form.get('decision'));
+  if (decision !== 'approve' && decision !== 'reject') return { error: 'Choose Approve or Reject.' };
   const sub = must(await db().from('submissions').select('*').eq('id', String(form.get('submission_id'))).single(), 'submission') as Submission;
   if (!canSeeClient(s, sub.client_id)) return { error: 'You can review only your own clients.' };
   if (sub.status !== 'in_progress') return { error: 'This submission was already reviewed.' };
@@ -57,7 +58,7 @@ export async function reviewAction(_: FormState, form: FormData): Promise<FormSt
 export async function reviewClientInvoiceAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   const personId = String(form.get('person_id'));
   const period = String(form.get('period'));
   const person = must(await db().from('people').select('id,full_name,client_id,vendor_id,start_date,end_date').eq('id', personId).single(), 'person') as Person;
@@ -113,7 +114,7 @@ export async function cancelApprovalAction(_: FormState, form: FormData): Promis
 export async function updateClientInvoiceAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   const ci = (await db().from('client_invoices').select('*').eq('id', String(form.get('client_invoice_id'))).maybeSingle()).data as
     { id: string; client_id: string; person_id: string; period: string; hours: number; file_name: string; file_path: string } | null;
   if (!ci || !canSeeClient(s, ci.client_id)) return { error: 'Client invoice not found.' };
@@ -176,7 +177,7 @@ async function filesFrom(form: FormData, w2: boolean, required: boolean) {
 export async function submitAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['vendor', 'w2', 'w9']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   const personId = s.persona === 'vendor' ? String(form.get('person_id') || '') : s.account.person_id!;
   const period = String(form.get('period') || '');
   const back = s.persona === 'w2' ? '/timesheets' : '/invoices';
@@ -217,7 +218,7 @@ export async function submitAction(_: FormState, raw: FormData): Promise<FormSta
 export async function resubmitAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['vendor', 'w2', 'w9']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   const old = must(await db().from('submissions').select('*').eq('id', String(form.get('submission_id'))).single(), 'submission') as Submission;
   const p = await submitter(s, old.person_id);
   if (!p) return { error: 'You can only change your own submissions.' };
@@ -246,7 +247,7 @@ export async function resubmitAction(_: FormState, raw: FormData): Promise<FormS
     timesheet_path: ts?.path ?? old.timesheet_path, timesheet_name: ts?.name ?? old.timesheet_name,
     status: 'in_progress', submitted_by: s.account.id
   });
-  if (error) { await db().from('submissions').update({ status: old.status }).eq('id', old.id); return { error: error.message }; }
+  if (error) { await db().from('submissions').update({ status: old.status }).eq('id', old.id); console.error('resubmit', error.message); return { error: 'The resubmission could not be saved. Try again.' }; }
   await audit(s, mode === 'resubmit' ? 'resubmit' : 'replace', 'submission', old.ref, `${mode === 'resubmit' ? 'resubmitted' : 'replaced a file on'} ${old.ref} (${p.full_name}, v${old.version_no + 1})`);
   await notifyStaff(s, [await amOfPerson(p.id)], { title: mode === 'resubmit' ? `${old.ref} resubmitted` : `${old.ref}: file replaced`,
     body: `${p.full_name} · ${monthLong(old.period)} · ${hours} h. It is In Progress for review again.`, link: `/invoice-management?m=review&person=${p.id}&period=${old.period}` });

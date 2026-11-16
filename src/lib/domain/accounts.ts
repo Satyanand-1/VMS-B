@@ -1,6 +1,7 @@
 import 'server-only';
 import { passwordProblem } from '../password';
 import { randomInt } from 'crypto';
+import { encrypt } from '../crypto';
 import { cookies } from 'next/headers';
 import { db, must } from '../supabase/admin';
 import { loginDetailsEmail, newPasswordEmail, sendEmail } from '../email';
@@ -38,7 +39,11 @@ export async function createLogin(s: Session, opts: {
   email: string; name: string; role: 'vendor' | 'resource' | 'account_manager'; password: string; vendorId?: string; personId?: string; phone?: string | null;
 }): Promise<LoginResult> {
   const { data, error } = await db().auth.admin.createUser({ email: opts.email, password: opts.password, email_confirm: true });
-  if (error || !data.user) throw new Error(error?.message.includes('already') ? 'An account with this email already exists.' : `Could not create the sign-in: ${error?.message}`);
+  if (error || !data.user) {
+    if (error?.message.includes('already')) throw new Error('An account with this email already exists.');
+    console.error('create sign-in', error?.message);
+    throw new Error('The sign-in could not be created. Try again.');
+  }
   const external = opts.role !== 'account_manager';
   must(await db().from('user_accounts').insert({
     id: data.user.id, role: opts.role, email: opts.email, full_name: opts.name, phone: opts.phone || null, status: 'active',
@@ -61,7 +66,7 @@ export async function sendNewPassword(s: Session, accountId: string, password: s
   if (acc.role === 'super_admin') throw new Error('The Super Admin password is changed by the Super Admin.');
   if (acc.role === 'account_manager' && s.persona !== 'superadmin') throw new Error('Only the Super Admin sets account manager passwords.');
   const { error } = await db().auth.admin.updateUserById(acc.id, { password });
-  if (error) throw new Error(error.message);
+  if (error) { console.error('new password', error.message); throw new Error('The new password could not be saved. Try again.'); }
   const external = acc.role === 'vendor' || acc.role === 'resource';
   await db().from('user_accounts').update({
     must_change_password: true, password_set_at: new Date().toISOString(), status: acc.role === 'account_manager' ? 'active' : undefined,
@@ -74,9 +79,11 @@ export async function sendNewPassword(s: Session, accountId: string, password: s
 
 // Text for the success message. When the email could not be sent, the login details are kept in a private,
 // 2-minute cookie and shown on screen (never in the URL), so they can be shared another way.
-export async function loginNote(r: LoginResult) {
+export async function loginNote(r: LoginResult, s: Session) {
   if (r.sent) return `An email with the username (${r.email}) and password was sent to ${r.email}. The password must be changed at first sign-in.`;
   const store = await cookies();
-  store.set('vms_login_note', JSON.stringify({ email: r.email, password: r.password }), { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', maxAge: 120, path: '/' });
+  // Encrypted (AES-256-GCM) and httpOnly: the password is never stored in readable form, even in the 2-minute cookie.
+  store.set('vms_login_note', encrypt(JSON.stringify({ email: r.email, password: r.password, by: s.account.id })),
+    { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', maxAge: 120, path: '/' });
   return 'The email could not be sent (email service not set up). The login details are shown below for 2 minutes — share them yourself.';
 }

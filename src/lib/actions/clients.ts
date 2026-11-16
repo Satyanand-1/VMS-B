@@ -40,7 +40,7 @@ function clientFields(form: FormData) {
 export async function createClientAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   const f = clientFields(form);
   const ams = form.getAll('account_managers').map(String);
   const msa = uploadField(form, 'msa');
@@ -75,12 +75,12 @@ export async function createClientAction(_: FormState, raw: FormData): Promise<F
 export async function updateClientAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   const id = String(form.get('id'));
   if (!canSeeClient(s, id)) return { error: 'You do not have access to this client.' };
   const before = must(await db().from('clients').select('*').eq('id', id).single(), 'client') as Record<string, unknown>;
   const f = clientFields(form);
-  const status = String(form.get('status') || 'active');
+  const status = String(form.get('status')) === 'inactive' ? 'inactive' : 'active';
   const msa = uploadField(form, 'msa');
   const fe: Record<string, string> = {};
   if (!f.name) fe.name = 'Enter the client name.';
@@ -126,11 +126,14 @@ export async function updateClientAction(_: FormState, raw: FormData): Promise<F
 export async function saveClientInvoicesAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   if (!isStaff(s)) return { error: 'Not allowed.' };
   const period = String(form.get('period'));
   const back = safeBack(form.get('back'), '/clients');
-  const personIds = Array.from(new Set(Array.from(form.keys()).filter((k) => k.startsWith('hours_') || k.startsWith('file_')).map((k) => k.split('_')[1])));
+  // Field names are hours_<person id> / file_<person id>; only well-formed IDs are used (the names come from the browser).
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const personIds = Array.from(new Set(Array.from(form.keys()).filter((k) => k.startsWith('hours_') || k.startsWith('file_'))
+    .map((k) => k.slice(k.indexOf('_') + 1)).filter((id) => UUID.test(id))));
   const fe: Record<string, string> = {};
   const todo: { personId: string; file: File; hours: number; clientId: string; name: string }[] = [];
   for (const pid of personIds) {

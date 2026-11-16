@@ -10,6 +10,7 @@ import { Alert } from './ui';
 import { profileMenuFor } from '@/lib/nav';
 import { signOut } from '@/lib/actions/auth';
 import { db } from '@/lib/supabase/admin';
+import { decrypt } from '@/lib/crypto';
 import type { Session } from '@/lib/session';
 
 const ROLE_LABEL = { superadmin: 'Super Admin', accountmanager: 'Account Manager', vendor: '', w2: 'W-2 Resource', w9: '1099 Resource' };
@@ -31,7 +32,12 @@ export async function Page({ s, title, parent, actions, flash, children }: {
   const [flashTitle, flashText] = flash ? decodeURIComponent(flash).split('|') : [];
   // Login details kept for 2 minutes when the email could not be sent (see loginNote).
   let loginDetails: { email: string; password: string } | null = null;
-  try { const raw = (await cookies()).get('vms_login_note')?.value; if (raw) loginDetails = JSON.parse(raw); } catch { loginDetails = null; }
+  // Encrypted cookie; shown only to the person who created the account.
+  try {
+    const raw = (await cookies()).get('vms_login_note')?.value;
+    const note = raw ? JSON.parse(decrypt(raw)) as { email: string; password: string; by: string } : null;
+    if (note && note.by === s.account.id) loginDetails = { email: note.email, password: note.password };
+  } catch { loginDetails = null; }
   return (
     <>
       <header className="topbar">

@@ -140,7 +140,7 @@ async function reviewModal(s: Session, personId: string, period: string, closeHr
           <div className="review-doc">
             <div className="review-doc-title">{docLabel}</div>
             {docFile?.name ? <DocPreview fileKey={docFile.key} name={docFile.name}
-              extra={sub && p.type !== 'w2' && sub.timesheet_name ? <div className="person-sub">Timesheet: <a className="link-btn" href={`/api/files/st-${sub.id}`} target="_blank" rel="noreferrer">{sub.timesheet_name}</a></div> : null} />
+              extra={sub && p.type !== 'w2' && sub.timesheet_name ? <div className="person-sub">Timesheet: <a className="link-btn" href={`/api/files/st-${sub.id}`} target="_blank" rel="noopener noreferrer">{sub.timesheet_name}</a></div> : null} />
               : <div className="review-missing">The {who} has not submitted the {docLabel.toLowerCase()} yet.</div>}
           </div>
         </div>

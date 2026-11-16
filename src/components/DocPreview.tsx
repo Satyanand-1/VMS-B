@@ -24,7 +24,7 @@ export function DocPreview({ fileKey, name, extra }: { fileKey: string; name: st
       <div className="doc-preview-bar">
         <span className="doc-preview-name" title={name}>{name}</span>
         <span className="row-actions">
-          <a className="link-btn" href={src} target="_blank" rel="noreferrer">View</a>
+          <a className="link-btn" href={src} target="_blank" rel="noopener noreferrer">View</a>
           <a className="link-btn" href={`${src}?download=1`}>Download</a>
         </span>
       </div>

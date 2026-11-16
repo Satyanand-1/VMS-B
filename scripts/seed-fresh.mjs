@@ -1,17 +1,17 @@
 // Fresh start: an empty system with only the Super Admin account. Everything else is created from the app.
 // Usage: node --env-file=.env.local scripts/seed-fresh.mjs
 //   SUPER_ADMIN_EMAIL / SUPER_ADMIN_NAME   who the Super Admin is
-//   SUPER_ADMIN_PASSWORD                   fixed password (local development)
-//   SUPER_ADMIN_TEMP=1                     random temporary password instead; it must be changed at first sign-in
+//   SUPER_ADMIN_PASSWORD                   fixed password from .env.local (local development only; never committed)
+//   (no SUPER_ADMIN_PASSWORD, or SUPER_ADMIN_TEMP=1)  a random temporary password is printed; it must be changed at first sign-in
 import { createClient } from '@supabase/supabase-js';
 import { randomInt } from 'crypto';
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const email = (process.env.SUPER_ADMIN_EMAIL || 'a.krishnan@arkhyatech.com').toLowerCase();
 const name = process.env.SUPER_ADMIN_NAME || 'Arun Krishnan';
-const temp = process.env.SUPER_ADMIN_TEMP === '1';
-const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789#%+=';
-const password = temp ? Array.from({ length: 16 }, () => chars[randomInt(chars.length)]).join('') : process.env.SUPER_ADMIN_PASSWORD || 'password123';
+const temp = process.env.SUPER_ADMIN_TEMP === '1' || !process.env.SUPER_ADMIN_PASSWORD;
+const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+const password = temp ? Array.from({ length: 16 }, () => chars[randomInt(chars.length)]).join('') : process.env.SUPER_ADMIN_PASSWORD;
 
 const { data, error } = await sb.auth.admin.createUser({ email, password, email_confirm: true });
 if (error) throw new Error(`Super Admin: ${error.message}`);

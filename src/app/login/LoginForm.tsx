@@ -4,18 +4,7 @@ import { useState } from 'react';
 import { signIn } from '@/lib/actions/auth';
 import { PasswordInput } from '@/components/PasswordInput';
 
-const DEMO = [
-  ['a.krishnan@arkhyatech.com', 'Super Admin · Arun Krishnan'],
-  ['a.ross@arkhyatech.com', 'Account Manager · Alicia Ross'],
-  ['d.ortiz@coralstaffing.com', 'Vendor · Daniel Ortiz'],
-  ['maya.reed@outlook.com', 'W-2 · Maya Reed'],
-  ['jordan@blakeux.studio', '1099 · Jordan Blake'],
-  ['contracts@harborviewstaffing.com', 'New vendor · first sign-in'],
-  ['mprice@ridgelinetalent.com', 'Password expired (day 31)'],
-  ['billing@orbitsystems.com', 'Inactive vendor']
-];
-
-export function LoginForm({ notice, ok, demo }: { notice?: string; ok?: string; demo: boolean }) {
+export function LoginForm({ notice, ok }: { notice?: string; ok?: string }) {
   const [state, action, pending] = useFormAction(signIn);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,16 +22,6 @@ export function LoginForm({ notice, ok, demo }: { notice?: string; ok?: string; 
         {error ? <div className="login-error">{error}</div> : null}
         <button className="btn btn-primary login-button" type="submit" disabled={pending}>{pending ? 'Signing in…' : 'Sign In'}</button>
       </form>
-      {demo ? (
-        <div className="demo-accounts">
-          <div className="demo-title">Demo accounts (development) · password: password123</div>
-          <div className="demo-row">
-            {DEMO.map(([e, label]) => (
-              <button key={e} type="button" className="demo-chip login-chip" onClick={() => { setEmail(e); setPassword('password123'); }}>{label}</button>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

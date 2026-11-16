@@ -89,8 +89,11 @@ const reservedNames = (type: PType) => [...STAFF_DOCS[type].map((d) => d.name), 
 export async function createPersonAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
-  const type = String(form.get('type')) as PType;
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
+  // Only the three known types are accepted (the value comes from the browser).
+  const rawType = String(form.get('type') || '');
+  if (!(['consultant', 'w2', 'w1099'] as string[]).includes(rawType)) return { error: 'Choose what kind of person to add.' };
+  const type = rawType as PType;
   const vendorId = type === 'consultant' ? String(form.get('vendor_id') || '') : null;
   const back = safeBack(form.get('back'), '/vendors');
   if (vendorId && !canSeeVendor(s, vendorId)) return { error: 'You do not have access to this vendor.' };
@@ -139,7 +142,7 @@ export async function createPersonAction(_: FormState, raw: FormData): Promise<F
   let login;
   try { login = await createLogin(s, { email: f.email, name: f.full_name, role: 'resource', password: pw.password!, personId: p.id, phone: f.phone }); }
   catch (e) { return { error: (e as Error).message }; }
-  redirect(`${back}${back.includes('?') ? '&' : '?'}${flash(`${label} added · ${login.sent ? 'login details sent' : 'email not sent'}`, `${f.full_name} was added. ${await loginNote(login)}`)}`);
+  redirect(`${back}${back.includes('?') ? '&' : '?'}${flash(`${label} added · ${login.sent ? 'login details sent' : 'email not sent'}`, `${f.full_name} was added. ${await loginNote(login, s)}`)}`);
 }
 
 async function amFor(vendorId: string | null, clientId: string | null) {
@@ -152,7 +155,7 @@ async function amFor(vendorId: string | null, clientId: string | null) {
 export async function updatePersonAction(_: FormState, raw: FormData): Promise<FormState> {
   const s = await requireSession(['superadmin', 'accountmanager']);
   let form: FormData;
-  try { form = await unstage(raw); } catch (e) { return { error: (e as Error).message }; }
+  try { form = await unstage(raw, s.account.id); } catch (e) { return { error: (e as Error).message }; }
   const id = String(form.get('id'));
   const back = safeBack(form.get('back'), '/vendors');
   const before = must(await db().from('people').select('*').eq('id', id).single(), 'person') as Record<string, unknown> & { type: PType; vendor_id: string | null; client_id: string | null; full_name: string; id: string };
@@ -176,7 +179,7 @@ export async function updatePersonAction(_: FormState, raw: FormData): Promise<F
   const upd: Record<string, unknown> = {
     full_name: f.full_name, email: f.email, phone: f.phone, role_title: f.role_title, client_id: f.client_id, hourly_rate: f.hourly_rate,
     start_date: f.start_date, end_date: f.end_date, duration: f.duration, work_location: f.work_location,
-    status: String(form.get('status') || before.status)
+    status: (['active', 'onboarding', 'inactive', 'ended'] as string[]).includes(String(form.get('status'))) ? String(form.get('status')) : before.status
   };
   if (before.type !== 'consultant') { upd.address = f.address; upd.payment_term = f.payment_term || 'Net 10'; if (f.ssn.length === 9) { upd.ssn_last4 = f.ssn.slice(-4); upd.ssn_enc = encrypt(f.ssn); } }
   if (s.persona === 'superadmin' && form.get('account_manager_id')) upd.account_manager_id = String(form.get('account_manager_id'));

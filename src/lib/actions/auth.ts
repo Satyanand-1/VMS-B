@@ -74,7 +74,7 @@ export async function setNewPassword(_: FormState, form: FormData): Promise<Form
   const checker = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
   if (!(await checker.auth.signInWithPassword({ email: s.account.email, password: pw })).error) return { error: 'Choose a password different from the temporary one.' };
   const { error } = await db().auth.admin.updateUserById(s.account.id, { password: pw });
-  if (error) return { error: error.message };
+  if (error) { console.error('set password', error.message); return { error: 'The password could not be saved. Try a different password.' }; }
   const today = todayISO();
   await db().from('user_accounts').update({
     must_change_password: false,
@@ -102,12 +102,18 @@ export async function changePassword(_: FormState, form: FormData): Promise<Form
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
   // Check the current password with a separate client so the signed-in session is never touched.
+  const since = new Date(Date.now() - LOCK_MINUTES * 60000).toISOString();
+  const { count: fails } = await db().from('audit_log').select('id', { count: 'exact', head: true }).eq('action', 'login_failed').eq('entity_id', s.account.email).gte('at', since);
+  if ((fails || 0) >= MAX_FAILS) return { error: `Too many wrong passwords. Try again in ${LOCK_MINUTES} minutes.` };
   const checker = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
   const check = await checker.auth.signInWithPassword({ email: s.account.email, password: current });
-  if (check.error) return { fieldErrors: { current: 'Current password is incorrect.' } };
+  if (check.error) {
+    await db().from('audit_log').insert({ action: 'login_failed', entity: 'session', entity_id: s.account.email, summary: 'wrong current password on Change Password', actor_name: s.account.email });
+    return { fieldErrors: { current: 'Current password is incorrect.' } };
+  }
   await checker.auth.signOut({ scope: 'local' }); // only this check's session, never the user's browser session
   const { error } = await db().auth.admin.updateUserById(s.account.id, { password: pw });
-  if (error) return { error: error.message };
+  if (error) { console.error('change password', error.message); return { error: 'The password could not be changed. Try a different password.' }; }
   // Vendors and resources: a fresh 30-day period. Account managers and the Super Admin: passwords do not expire.
   const external = isExternal(s.account.role);
   const expires = external ? `${addDays(todayISO(), PASSWORD_DAYS)}T23:59:59Z` : null;

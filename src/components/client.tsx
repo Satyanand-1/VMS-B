@@ -204,7 +204,7 @@ export const useToast = () => useContext(ToastCtx);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const show = useCallback((t: Omit<Toast, 'id'>) => {
-    const id = Date.now() + Math.random();
+    const id = Date.now() + crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
     setToasts((all) => [...all, { ...t, id }]);
     setTimeout(() => setToasts((all) => all.filter((x) => x.id !== id)), 4500);
   }, []);
