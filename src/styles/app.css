@@ -64,3 +64,10 @@ form > button.profile-menu-item { width: 100%; }
 /* An error from the last save disappears as soon as the user corrects that field. */
 .field.edited .field-error.srv { display: none; }
 .errors-fixed .form-footer .field-error[role=alert] { display: none; }
+
+/* Left menu stays in place while the page scrolls (desktop and tablet); it scrolls on its own only if it is taller than the window.
+   On phones (980px and below) the menu is the collapsible bar at the top, so this does not apply. */
+@media (min-width: 981px) {
+  .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; align-self: flex-start; overscroll-behavior: contain; }
+  .main-panel { min-width: 0; }
+}
