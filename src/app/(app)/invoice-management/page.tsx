@@ -34,7 +34,9 @@ export default async function InvoiceManagementPage({ searchParams }: { searchPa
     return { p, sub, ci, st: reviewStatus(sub, ci), note: reviewNote(sub, ci, p.type) };
   };
   const all = people.map(rec);
-  const list = all.filter((r) => r.p.type === TYPES[tab] && (client === 'all' || r.p.client_id === client) && (status === 'All statuses' || r.st === status));
+  // Client and Status filters apply to the list and to the counts on the tabs.
+  const filtered = all.filter((r) => (client === 'all' || r.p.client_id === client) && (status === 'All statuses' || r.st === status));
+  const list = filtered.filter((r) => r.p.type === TYPES[tab]);
   const q = (over: Record<string, string | number>) => `/invoice-management?${new URLSearchParams({ client, status, period, tab: String(tab), ...Object.fromEntries(Object.entries(over).map(([k, v]) => [k, String(v)])) })}`;
   const hours = (h: number | null | undefined, other: number | null | undefined, key: string) => (h == null ? '—' : other != null && Number(h) !== Number(other) ? <Diff key={key}>{Number(h)}</Diff> : String(Number(h)));
   const rows = list.map(({ p, sub, ci, st, note }) => [
@@ -55,7 +57,7 @@ export default async function InvoiceManagementPage({ searchParams }: { searchPa
         { label: 'Billing period', param: 'period', value: period, options: months.map((x) => ({ value: x, label: monthLong(x) })) }
       ]} />
       <div className="tabs">
-        {TABS.map((t, i) => <Link key={t} href={q({ tab: i })} scroll={false} replace className={`tab ${i === tab ? 'active' : ''}`}>{t} ({all.filter((r) => r.p.type === TYPES[i]).length})</Link>)}
+        {TABS.map((t, i) => <Link key={t} href={q({ tab: i })} scroll={false} replace className={`tab ${i === tab ? 'active' : ''}`}>{t} ({filtered.filter((r) => r.p.type === TYPES[i]).length})</Link>)}
       </div>
       <DataTable title={`${TABS[tab]} · ${monthLong(period)}`} chip={`${list.length} ${list.length === 1 ? 'person' : 'people'}`} noSearch
         headers={[tab === 0 ? 'Consultant' : 'Resource', 'Client', 'Client Hours', tab === 0 ? 'Vendor Hours' : 'Resource Hours', 'Status', 'Actions']}

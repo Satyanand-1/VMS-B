@@ -33,8 +33,9 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
     && (!p.start_date || p.start_date <= monthEnd) && (!p.end_date || p.end_date >= period));
   const cis = await clientInvoicesFor(people.map((p) => p.id), [period]);
   const ciOf = (pid: string) => cis.find((c) => c.person_id === pid) || null;
-  const ofTab = people.filter((p) => p.type === TAB_TYPES[tab]);
-  const shown = ofTab.filter((p) => status === 'All' || (status === 'Uploaded') === !!ciOf(p.id));
+  // The Status filter (All / Uploaded / Not uploaded) applies to the list and to the counts on the tabs.
+  const matchesStatus = (p: Person) => status === 'All' || (status === 'Uploaded') === !!ciOf(p.id);
+  const shown = people.filter((p) => p.type === TAB_TYPES[tab] && matchesStatus(p));
   const missing = shown.filter((p) => !ciOf(p.id)).length;
 
   const rows: CiRow[] = shown.map((p) => {
@@ -84,7 +85,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         { label: 'Month', param: 'month', value: period, options: months.map((x) => ({ value: x, label: monthLong(x) })) }
       ]} />
       {strip}
-      <Tabs tabs={TABS.map((t, i) => `${t} (${people.filter((p) => p.type === TAB_TYPES[i]).length})`)} active={tab} href={(i) => base({ tab: i })} />
+      <Tabs tabs={TABS.map((t, i) => `${t} (${people.filter((p) => p.type === TAB_TYPES[i] && matchesStatus(p)).length})`)} active={tab} href={(i) => base({ tab: i })} />
       <ClientInvoicesTable key={`${clientId}-${status}-${period}-${tab}`}
         title={`${all ? 'All clients' : clients.find((c) => c.id === clientId)?.name} · ${TABS[tab]} · ${monthLong(period)}`}
         chip={missing ? `${missing} client invoice${missing > 1 ? 's' : ''} not uploaded` : `${shown.length} ${shown.length === 1 ? 'person' : 'people'}`}
