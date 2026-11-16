@@ -11,8 +11,8 @@ import type { Session } from '@/lib/session';
 
 const TABS = ['All', 'Approved', 'In Progress', 'Rejected'];
 const SORTS: { value: string; label: string; vendorOnly?: boolean }[] = [
-  { value: 'newest', label: 'Newest submitted first' },
-  { value: 'oldest', label: 'Oldest submitted first' },
+  { value: 'newest', label: 'Latest' },
+  { value: 'oldest', label: 'Oldest' },
   { value: 'period_desc', label: 'Billable period (newest first)' },
   { value: 'period_asc', label: 'Billable period (oldest first)' },
   { value: 'consultant', label: 'Consultant (A–Z)', vendorOnly: true },

@@ -15,12 +15,13 @@ const TABS = ['Vendor Consultants', 'W-2', '1099'];
 const TYPES: Person['type'][] = ['consultant', 'w2', 'w1099'];
 const STATUSES = ['All statuses', 'Approved', 'Rejected', 'In Progress'];
 const SORTS = [
+  { value: 'latest', label: 'Latest' },
+  { value: 'oldest', label: 'Oldest' },
   { value: 'name', label: 'Name (A–Z)' },
   { value: 'name_desc', label: 'Name (Z–A)' },
   { value: 'client', label: 'Client (A–Z)' },
   { value: 'vendor', label: 'Vendor (A–Z)' },
   { value: 'status', label: 'Status' },
-  { value: 'submitted', label: 'Latest submitted first' },
   { value: 'client_hours', label: 'Client hours (highest first)' },
   { value: 'sub_hours', label: 'Vendor / resource hours (highest first)' },
   { value: 'diff', label: 'Hours difference (largest first)' }
@@ -53,7 +54,10 @@ export default async function InvoiceManagementPage({ searchParams }: { searchPa
   // Client and Status filters apply to the list and to the counts on the tabs.
   const filtered = all.filter((r) => (client === 'all' || r.p.client_id === client) && (status === 'All statuses' || r.st === status));
   // Sort by (kept in the address with the other filters).
-  const sort = SORTS.some((o) => o.value === sp.sort) ? sp.sort : 'name';
+  const sort = SORTS.some((o) => o.value === sp.sort) ? sp.sort : 'latest';
+  // Latest / Oldest: by the most recent activity on the record (invoice or timesheet submitted, client invoice uploaded);
+  // records with neither yet come last.
+  const activity = (r: (typeof all)[number]) => [r.sub?.submitted_at, (r.ci as { uploaded_at?: string } | null)?.uploaded_at].filter(Boolean).sort().pop() || '';
   const by = (a: string | number, b: string | number) => (a < b ? -1 : a > b ? 1 : 0);
   const name = (r: (typeof all)[number]) => r.p.full_name.toLowerCase();
   const diff = (r: (typeof all)[number]) => (r.ci && r.sub ? Math.abs(Number(r.ci.hours) - Number(r.sub.hours)) : -1);
@@ -66,7 +70,8 @@ export default async function InvoiceManagementPage({ searchParams }: { searchPa
     client_hours: (a, b) => Number(b.ci?.hours ?? -1) - Number(a.ci?.hours ?? -1),
     sub_hours: (a, b) => Number(b.sub?.hours ?? -1) - Number(a.sub?.hours ?? -1),
     diff: (a, b) => diff(b) - diff(a),
-    submitted: (a, b) => by(b.sub?.submitted_at || '', a.sub?.submitted_at || '')
+    latest: (a, b) => by(activity(b), activity(a)),
+    oldest: (a, b) => (!activity(a) ? 1 : !activity(b) ? -1 : by(activity(a), activity(b)))
   };
   const list = filtered.filter((r) => r.p.type === TYPES[tab]).sort((a, b) => cmp[sort](a, b) || by(name(a), name(b)));
   const q = (over: Record<string, string | number>) => `/invoice-management?${new URLSearchParams({ client, status, period, tab: String(tab), sort, ...Object.fromEntries(Object.entries(over).map(([k, v]) => [k, String(v)])) })}`;
