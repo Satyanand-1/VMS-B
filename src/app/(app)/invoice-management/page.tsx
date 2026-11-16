@@ -24,10 +24,12 @@ export default async function InvoiceManagementPage({ searchParams }: { searchPa
   const m = await maps();
   const [y, mo] = period.split('-').map(Number);
   const monthEnd = new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
-  const people = (await peopleInScope(s)).filter((p) => p.client_id && clients.some((c) => c.id === p.client_id)
-    && (!p.start_date || p.start_date <= monthEnd) && (!p.end_date || p.end_date >= period));
-  const ids = people.map((p) => p.id);
-  const [subs, cis] = await Promise.all([submissionsFor(ids, [period]), clientInvoicesFor(ids, [period])]);
+  // People working that month, plus anyone who already has a client invoice or a submission for it (whatever their dates).
+  const mapped = (await peopleInScope(s)).filter((p) => p.client_id && clients.some((c) => c.id === p.client_id));
+  const mappedIds = mapped.map((p) => p.id);
+  const [subs, cis] = await Promise.all([submissionsFor(mappedIds, [period]), clientInvoicesFor(mappedIds, [period])]);
+  const people = mapped.filter((p) => ((!p.start_date || p.start_date <= monthEnd) && (!p.end_date || p.end_date >= period))
+    || cis.some((c) => c.person_id === p.id) || subs.some((x) => x.person_id === p.id));
   const rec = (p: Person) => {
     const sub = activeSubmission(subs, p.id, period);
     const ci = cis.find((c) => c.person_id === p.id) || null;

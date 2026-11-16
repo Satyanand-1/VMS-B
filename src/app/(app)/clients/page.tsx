@@ -26,33 +26,32 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   const all = clientId === 'all';
   const m = await maps();
 
-  // Everyone assigned to the client(s) is listed (consultants mapped to a client, W-2 and 1099 resources).
-  // A client invoice is due only for a month inside the person's start and end dates; outside it the row says why.
+  // Everyone assigned to the client(s) is listed (consultants mapped to a client, W-2 and 1099 resources), and a client
+  // invoice can be uploaded for any of the offered months. When the month is outside the person's assignment dates the
+  // dates are shown as a note only (dates are often entered or extended later), never as a block.
   const people = (await peopleInScope(s)).filter((p) => p.client_id && (all ? clients.some((c) => c.id === p.client_id) : p.client_id === clientId));
-  const notDue = (p: Person) => (p.start_date && p.start_date.slice(0, 7) > period.slice(0, 7) ? `Starts ${fmtDate(p.start_date)}`
-    : p.end_date && p.end_date.slice(0, 7) < period.slice(0, 7) ? `Ended ${fmtDate(p.end_date)}` : null);
+  const dateNote = (p: Person) => (p.start_date && p.start_date.slice(0, 7) > period.slice(0, 7) ? `Assignment starts ${fmtDate(p.start_date)}`
+    : p.end_date && p.end_date.slice(0, 7) < period.slice(0, 7) ? `Assignment ended ${fmtDate(p.end_date)}` : null);
   const cis = await clientInvoicesFor(people.map((p) => p.id), [period]);
   const ciOf = (pid: string) => cis.find((c) => c.person_id === pid) || null;
   // The Status filter (All / Uploaded / Not uploaded) applies to the list and to the counts on the tabs.
-  // "Not uploaded" means due this month but missing; people not due this month appear under All.
-  const matchesStatus = (p: Person) => status === 'All' || (status === 'Uploaded' ? !!ciOf(p.id) : !ciOf(p.id) && !notDue(p));
+  const matchesStatus = (p: Person) => status === 'All' || (status === 'Uploaded') === !!ciOf(p.id);
   const shown = people.filter((p) => p.type === TAB_TYPES[tab] && matchesStatus(p));
-  const missing = shown.filter((p) => !ciOf(p.id) && !notDue(p)).length;
+  const missing = shown.filter((p) => !ciOf(p.id)).length;
 
   const rows: CiRow[] = shown.map((p) => {
     const ci = ciOf(p.id);
-    const why = ci ? null : notDue(p);
+    const note = dateNote(p);
+    const sub = p.vendor_id ? m.vendor[p.vendor_id]?.name : `${p.type === 'w2' ? 'W-2' : '1099'} resource`;
     return {
       personId: p.id, uploaded: !!ci, search: p.full_name,
       cells: [
-        <PersonCell key="p" name={p.full_name} sub={p.vendor_id ? m.vendor[p.vendor_id]?.name : `${p.type === 'w2' ? 'W-2' : '1099'} resource`} />,
+        <PersonCell key="p" name={p.full_name} sub={note ? `${sub} · ${note}` : sub} />,
         ...(all ? [m.client[p.client_id!]?.name] : []),
-        why ? <span key="s"><Badge text="Not Due" /><span className="person-sub">{why}</span></span> : <Badge key="s" text={ci ? 'Uploaded' : 'Not Uploaded'} />
+        <Badge key="s" text={ci ? 'Uploaded' : 'Not Uploaded'} />
       ],
-      fileCell: ci ? <div className="doc-cell"><FileChip name={ci.file_name} /><FileLinks fileKey={`ci-${ci.id}`} name={ci.file_name} download={false} /></div>
-        : why ? <span className="person-sub inline">No client invoice for {monthLong(period)}</span> : undefined,
-      hours: ci ? String(Number(ci.hours)) : why ? '—' : undefined,
-      locked: !!why
+      fileCell: ci ? <div className="doc-cell"><FileChip name={ci.file_name} /><FileLinks fileKey={`ci-${ci.id}`} name={ci.file_name} download={false} /></div> : undefined,
+      hours: ci ? String(Number(ci.hours)) : undefined
     };
   });
   const base = (over: Record<string, string | number>) => {
